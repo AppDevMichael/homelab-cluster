@@ -1,0 +1,10 @@
+repo:
+  url: https://github.com/YOU/opi-k8s.git   # overridden by the root Application parameters set from Tofu
+  revision: main
+
+# Toggles. Tailscale needs the operator-oauth Secret created by Tofu first.
+tailscale:
+  enabled: false
+# Set monitoring.enabled=false during disaster recovery until volumes are restored (see README → Recreate from backup).
+monitoring:
+  enabled: true

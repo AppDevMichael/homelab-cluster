@@ -1,0 +1,116 @@
+---
+- name: Assert backup inputs
+  ansible.builtin.assert:
+    that:
+      - backup_key | length >= 32
+      - storagebox_user | length > 0
+      - storagebox_host | length > 0
+    fail_msg: "BACKUP_KEY / STORAGEBOX_USER / STORAGEBOX_HOST must be set (see .env.example, scripts/backup-key.sh)"
+
+# One SSH keypair for the Storage Box, generated on the control machine, shared by all nodes.
+- name: Generate Storage Box SSH key (local)
+  community.crypto.openssh_keypair:
+    path: "{{ playbook_dir }}/secrets/storagebox_ed25519"
+    type: ed25519
+    comment: "opi-k8s-backup"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  register: sb_key
+
+- name: Install the key on the Storage Box (first time only, needs STORAGEBOX_PASSWORD)
+  ansible.builtin.shell: |
+    set -e
+    sshpass -e ssh -p 23 -o StrictHostKeyChecking=accept-new "{{ storagebox_user }}@{{ storagebox_host }}" \
+      'mkdir -p .ssh opi-k8s/restic opi-k8s/longhorn && cat >> .ssh/authorized_keys' \
+      < "{{ playbook_dir }}/secrets/storagebox_ed25519.pub"
+  environment:
+    SSHPASS: "{{ storagebox_password }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  when: sb_key.changed and storagebox_password | length > 0
+  no_log: true
+
+- name: Install restic
+  ansible.builtin.apt:
+    name: restic
+    state: present
+
+- name: restic config dir
+  ansible.builtin.file:
+    path: /etc/restic
+    state: directory
+    mode: "0700"
+
+- name: Deploy Storage Box SSH key
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/secrets/storagebox_ed25519"
+    dest: /etc/restic/storagebox_ed25519
+    mode: "0600"
+  no_log: true
+
+- name: restic password file
+  ansible.builtin.copy:
+    dest: /etc/restic/password
+    content: "{{ backup_key }}\n"
+    mode: "0600"
+  no_log: true
+
+- name: restic environment
+  ansible.builtin.template:
+    src: restic.env.j2
+    dest: /etc/restic/env
+    mode: "0600"
+
+- name: Pin Storage Box host key
+  ansible.builtin.shell: ssh-keyscan -p 23 {{ storagebox_host }} > /etc/restic/known_hosts 2>/dev/null
+  args:
+    creates: /etc/restic/known_hosts
+
+- name: Backup script
+  ansible.builtin.template:
+    src: k3s-backup.sh.j2
+    dest: /usr/local/sbin/k3s-backup
+    mode: "0700"
+
+- name: Backup service + timer
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    content: "{{ item.content }}"
+  loop:
+    - name: k3s-backup.service
+      content: |
+        [Unit]
+        Description=Off-site backup of k3s etcd snapshots and config (restic → Storage Box)
+        After=network-online.target
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/k3s-backup
+        Nice=10
+        IOSchedulingClass=idle
+    - name: k3s-backup.timer
+      content: |
+        [Unit]
+        Description=Daily k3s off-site backup
+        [Timer]
+        OnCalendar=*-*-* 03:{{ 10 + (groups['k3s_cluster'].index(inventory_hostname) * 10) }}:00
+        RandomizedDelaySec=5m
+        Persistent=true
+        [Install]
+        WantedBy=timers.target
+  notify: reload systemd
+
+- name: Enable backup timer
+  ansible.builtin.systemd:
+    name: k3s-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Initialise the restic repository (idempotent)
+  ansible.builtin.shell: |
+    set -a; . /etc/restic/env; set +a
+    restic snapshots >/dev/null 2>&1 || restic init
+  run_once: true
+  changed_when: false

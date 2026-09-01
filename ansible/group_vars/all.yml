@@ -1,0 +1,85 @@
+# ---- k3s -------------------------------------------------------------
+# Check https://github.com/k3s-io/k3s/releases and bump as needed.
+k3s_version: "v1.36.4+k3s1"
+
+# Shared cluster secret. Export K3S_TOKEN in your shell, or replace the default.
+k3s_token: "{{ lookup('env', 'K3S_TOKEN') | default('CHANGE-ME-to-a-long-random-string', true) }}"
+
+# Where the fetched kubeconfig lands (used by OpenTofu)
+kubeconfig_local_path: "{{ playbook_dir }}/../kubeconfig"
+
+# Pod / service CIDRs (k3s defaults). Referenced by the firewall too.
+k3s_cluster_cidr: "10.42.0.0/16"
+k3s_service_cidr: "10.43.0.0/16"
+
+# Extra hostnames/IPs to add to the API server certificate (e.g. a DNS name for the cluster)
+k3s_extra_tls_sans: []
+
+# ---- First boot / storage --------------------------------------------
+firstboot_locale: "en_IE.UTF-8"
+static_ip_enabled: true              # false = you use DHCP reservations; ansible_host must then already be reachable
+static_ip_prefix: 22
+static_ip_gateway: "192.168.68.1"
+static_ip_dns: ["192.168.68.60", "1.1.1.1"]
+
+nvme_enabled: true                   # move root to NVMe on first run (boot stays on SD)
+nvme_device: /dev/nvme0n1
+nvme_wipe: false                     # true = destroy existing partitions on the NVMe
+
+# ---- OS ----------------------------------------------------------------
+timezone: "Etc/UTC"
+base_packages:
+  - curl
+  - ca-certificates
+  - apt-transport-https
+  - python3-apt
+  - nfs-common
+  - open-iscsi        # handy if you add Longhorn later
+  - jq
+  - htop
+  - chrony
+  - cryptsetup     # Longhorn encrypted volumes (dm-crypt/LUKS)
+  - cifs-utils     # Longhorn backups to the Storage Box over SMB
+
+# ---- Tailscale ---------------------------------------------------------
+# Create a key at https://login.tailscale.com/admin/settings/keys
+#   → Reusable, Pre-authorized, and ideally tagged (e.g. tag:k8s) so it never expires.
+tailscale_authkey: "{{ lookup('env', 'TAILSCALE_AUTHKEY') }}"
+tailscale_ssh: true                 # enable Tailscale SSH on the nodes (ACL-controlled, no key juggling)
+tailscale_advertise_routes: []      # e.g. ["192.168.1.0/24"] to make one node a subnet router
+tailscale_extra_args: ""            # e.g. "--accept-dns=false"
+
+# ---- Hardening ---------------------------------------------------------
+hardening_admin_user: "ops"
+# Public keys that may log in as the admin user. Default: your local ed25519 key.
+hardening_ssh_pubkeys:
+  - "{{ lookup('file', '~/.ssh/id_ed25519_cluster.pub') }}"
+hardening_disable_root_ssh: true        # root can't SSH at all; use admin user + sudo
+hardening_lock_root_password: false     # true also blocks root on the serial console
+hardening_ssh_allow_tcp_forwarding: true  # needed for `kubectl port-forward`-style tunnels over SSH; Tailscale makes this optional
+# Networks allowed to reach ssh / ingress / API. Default: the /24 of each node's LAN IP.
+hardening_lan_cidrs:
+  - "{{ ansible_host.split('.')[0:3] | join('.') }}.0/24"
+# Extra nftables input rules, e.g. "tcp dport 30080 accept"
+hardening_extra_nft_input_rules: []
+hardening_blacklist_modules: [dccp, sctp, rds, tipc, cramfs, freevxfs, jffs2, hfs, hfsplus, udf]   # add usb-storage if you never use USB disks
+hardening_disable_services: [avahi-daemon, bluetooth, cups, rpcbind]
+
+# ---- Updates -----------------------------------------------------------
+# OS: unattended-upgrades pulls Debian/Ubuntu *security* pockets daily. Reboots are NOT done by
+# apt — kured (in-cluster) reboots one node at a time inside a window, draining first.
+updates_include_armbian_repo: false   # true = also auto-apply Armbian's own packages (kernel, u-boot, firmware).
+                                       # Safe-ish with kured, but a bad kernel on an SBC is a bad day; default is manual (`make os-upgrade`).
+updates_blacklist: [k3s, tailscale]    # tailscale updates itself (see below), k3s is upgraded by system-upgrade-controller
+updates_mail_to: ""                    # e.g. "you@example.com" — needs a working MTA on the node; empty = off
+
+# Tailscale: use its own updater (tracks the stable track, restarts itself, keeps the tailnet connection).
+tailscale_auto_update: true
+
+# ---- Backups (Hetzner Storage Box) --------------------------------------
+# One passphrase for everything (restic repo + Longhorn volume encryption), derived from your SSH agent:
+#   export BACKUP_KEY=$(scripts/backup-key.sh)
+backup_key: "{{ lookup('env', 'BACKUP_KEY') }}"
+storagebox_user: "{{ lookup('env', 'STORAGEBOX_USER') }}"
+storagebox_host: "{{ lookup('env', 'STORAGEBOX_HOST') }}"
+storagebox_password: "{{ lookup('env', 'STORAGEBOX_PASSWORD') }}"   # first run only, to install the SSH key

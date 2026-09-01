@@ -1,0 +1,102 @@
+---
+- name: Set hostname to inventory name
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Ensure hostname resolves locally
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: "127.0.1.1 {{ inventory_hostname }}"
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# --- Swap: Armbian ships zram swap by default; Kubernetes wants it off -----
+- name: Disable Armbian zram swap
+  ansible.builtin.lineinfile:
+    path: /etc/default/armbian-zram-config
+    regexp: '^#?ENABLED='
+    line: "ENABLED=false"
+    create: true
+  notify: reboot node
+
+- name: Turn off swap now
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Remove swap entries from fstab
+  ansible.posix.mount:
+    path: none
+    fstype: swap
+    state: absent
+
+# --- Kernel modules + sysctl -----------------------------------------------
+- name: Load required kernel modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: [overlay, br_netfilter, dm_crypt, iscsi_tcp]
+
+- name: Persist kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+      dm_crypt
+      iscsi_tcp
+
+- name: Kubernetes sysctl settings
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-kubernetes.conf
+    reload: true
+  loop: "{{ sysctls | dict2items }}"
+  vars:
+    sysctls:
+      net.ipv4.ip_forward: 1
+      net.bridge.bridge-nf-call-iptables: 1
+      net.bridge.bridge-nf-call-ip6tables: 1
+      fs.inotify.max_user_instances: 8192
+      fs.inotify.max_user_watches: 524288
+      # required by k3s protect-kernel-defaults
+      vm.overcommit_memory: 1
+      vm.panic_on_oom: 0
+      kernel.panic: 10
+      kernel.panic_on_oops: 1
+
+# --- cgroups: make sure memory/cpuset cgroups are enabled in the boot args --
+- name: Ensure cgroup boot args in armbianEnv.txt
+  ansible.builtin.shell: |
+    set -e
+    f=/boot/armbianEnv.txt
+    want="cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1"
+    if grep -q '^extraargs=' "$f"; then
+      if ! grep '^extraargs=' "$f" | grep -q 'cgroup_memory=1'; then
+        sed -i "s/^extraargs=\(.*\)$/extraargs=\1 $want/" "$f"; echo changed
+      fi
+    else
+      echo "extraargs=$want" >> "$f"; echo changed
+    fi
+  register: cgroup_args
+  changed_when: "'changed' in cgroup_args.stdout"
+  notify: reboot node
+
+- name: Enable open-iscsi (for future storage add-ons)
+  ansible.builtin.systemd:
+    name: iscsid
+    enabled: true
+    state: started
+
+- name: Flush handlers (reboot now if needed, before k3s install)
+  ansible.builtin.meta: flush_handlers

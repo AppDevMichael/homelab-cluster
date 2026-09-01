@@ -1,0 +1,12 @@
+kubeconfig
+kubeconfig-tailscale
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars
+.env
+# NOTE: tofu/.terraform.lock.hcl is intentionally committed (reproducible provider versions)
+.env
+ansible/secrets/*
+!ansible/secrets/.keep
+ansible/secrets/root_password_*

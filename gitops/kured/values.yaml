@@ -1,0 +1,22 @@
+# kubereboot/kured — watches /var/run/reboot-required, then drains + reboots ONE node at a time
+# inside the window below. Holds a cluster-wide lock so two Pis never reboot together.
+configuration:
+  period: 10m
+  rebootDays: [mo, tu, we, th, fr, sa, su]
+  startTime: "03:00"
+  endTime: "05:00"
+  timeZone: Etc/UTC          # <- match your timezone if you want a local window
+  drainTimeout: 5m
+  drainGracePeriod: 60
+  forceReboot: false
+  rebootSentinel: /var/run/reboot-required
+  lockTtl: 30m
+  annotateNodes: true
+  # notifyUrl: "discord://token@channel"   # shoutrrr URL — put it in a Secret + extraEnvVars instead of here
+metrics:
+  create: true               # ServiceMonitor; our Prometheus picks up all ServiceMonitors
+resources:
+  requests: { cpu: 10m, memory: 32Mi }
+  limits:   { memory: 64Mi }
+tolerations:
+  - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }

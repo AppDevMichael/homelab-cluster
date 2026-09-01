@@ -1,0 +1,40 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 88.3.0
+      helm:
+        releaseName: kps
+        valueFiles:
+          - $values/gitops/monitoring/values.yaml
+    - repoURL: "{{ .Values.repo.url }}"
+      targetRevision: "{{ .Values.repo.revision }}"
+      ref: values
+    # extra manifests: alert rules, dashboards, ingresses
+    - repoURL: "{{ .Values.repo.url }}"
+      targetRevision: "{{ .Values.repo.revision }}"
+      path: gitops/monitoring/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  # The operator injects its own CA into these; don't flag it as drift.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+  {{- include "bootstrap.syncPolicy" . | nindent 2 }}
+{{- end }}

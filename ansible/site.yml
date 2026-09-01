@@ -1,0 +1,74 @@
+---
+# Play 1 talks to fresh boards: root, default Armbian password (1234) OR a pre-seeded key, on whatever
+# IP they got from DHCP (firstboot_ip) — then moves them to their static inventory IP.
+- name: First boot (fresh Armbian → configured, on static IP, root on NVMe)
+  hosts: k3s_cluster
+  vars:
+    ansible_user: root
+    ansible_host: "{{ firstboot_ip | default(hostvars[inventory_hostname].ansible_host) }}"
+    ansible_password: "{{ lookup('env', 'ARMBIAN_ROOT_PASSWORD') | default('1234', true) }}"
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+  roles:
+    - firstboot
+    - { role: nvme, when: nvme_enabled }
+
+- name: Prepare Armbian nodes
+  hosts: k3s_cluster
+  roles:
+    - common
+    - tailscale
+    - hardening
+    - updates
+
+- name: Bootstrap first k3s server (cluster-init)
+  hosts: k3s_init
+  serial: 1
+  roles:
+    - role: k3s
+      vars:
+        k3s_role: init
+
+- name: Join remaining k3s servers
+  hosts: k3s_servers
+  serial: 1
+  roles:
+    - role: k3s
+      vars:
+        k3s_role: server
+
+- name: Off-site backups (restic → Storage Box)
+  hosts: k3s_cluster
+  roles:
+    - backup
+
+- name: Fetch kubeconfig
+  hosts: k3s_init
+  tasks:
+    - name: Read kubeconfig from init node
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: kubeconfig_raw
+
+    - name: Write kubeconfig locally with the real server address
+      ansible.builtin.copy:
+        content: "{{ kubeconfig_raw.content | b64decode | replace('127.0.0.1', ansible_host) }}"
+        dest: "{{ kubeconfig_local_path }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+
+    - name: Write a second kubeconfig that goes over Tailscale
+      ansible.builtin.copy:
+        content: "{{ kubeconfig_raw.content | b64decode | replace('127.0.0.1', tailscale_ip) }}"
+        dest: "{{ kubeconfig_local_path }}-tailscale"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+
+    - name: Show node status
+      ansible.builtin.command: kubectl get nodes -o wide
+      register: nodes
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ nodes.stdout_lines }}"

@@ -1,0 +1,87 @@
+---
+# Runs against a freshly flashed Armbian SD card (root / default password "1234", no user, no config).
+# Does everything the interactive first-login wizard would, without the wizard.
+
+- name: Disable Armbian's first-login wizard
+  ansible.builtin.file:
+    path: /root/.not_logged_in_yet
+    state: absent
+
+- name: Install our SSH key for root (later plays use key auth; hardening disables root SSH at the end)
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ item }}"
+  loop: "{{ hardening_ssh_pubkeys }}"
+
+# The default root password is public knowledge — replace it now. Saved locally for console recovery.
+- name: Generate a root password (kept in ansible/secrets/, git-ignored)
+  ansible.builtin.set_fact:
+    root_password: "{{ lookup('password', playbook_dir ~ '/secrets/root_password_' ~ inventory_hostname ~ ' length=24 chars=ascii_letters,digits') }}"
+  no_log: true
+
+- name: Hash it on the node (no passlib needed on the control machine)
+  ansible.builtin.command: openssl passwd -6 "{{ root_password }}"
+  register: root_hash
+  changed_when: false
+  no_log: true
+
+- name: Set root password
+  ansible.builtin.user:
+    name: root
+    password: "{{ root_hash.stdout }}"
+  no_log: true
+
+- name: Locale
+  ansible.builtin.locale_gen:
+    name: "{{ firstboot_locale }}"
+    state: present
+
+- name: Default locale
+  ansible.builtin.copy:
+    dest: /etc/default/locale
+    content: "LANG={{ firstboot_locale }}\n"
+
+- name: Make sure python3 + basics exist (Armbian minimal images)
+  ansible.builtin.raw: test -x /usr/bin/python3 || (apt-get update && apt-get install -y python3)
+  changed_when: false
+
+# ---- Static IP (only if the node isn't already on its inventory IP) ----
+- name: Current primary interface / address
+  ansible.builtin.set_fact:
+    fb_iface: "{{ ansible_default_ipv4.interface }}"
+    fb_current_ip: "{{ ansible_default_ipv4.address }}"
+
+- name: Configure static IP with netplan
+  when:
+    - static_ip_enabled
+    - fb_current_ip != hostvars[inventory_hostname].ansible_host
+  block:
+    - name: Move Armbian's DHCP-everything netplan aside
+      ansible.builtin.shell: |
+        for f in /etc/netplan/*dhcp*.yaml /etc/netplan/armbian-default.yaml; do
+          [ -f "$f" ] && mv "$f" "$f.disabled" || true
+        done
+      changed_when: true
+
+    - name: Write static netplan
+      ansible.builtin.template:
+        src: netplan-static.yaml.j2
+        dest: /etc/netplan/10-static.yaml
+        mode: "0600"
+
+    - name: Apply netplan (connection will drop)
+      ansible.builtin.shell: sleep 2 && netplan apply
+      async: 30
+      poll: 0
+
+    - name: Switch to the new address
+      ansible.builtin.set_fact:
+        ansible_host: "{{ hostvars[inventory_hostname].ansible_host }}"
+
+    - name: Wait for the node on its new IP
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 120
+
+- name: Re-gather facts
+  ansible.builtin.setup:

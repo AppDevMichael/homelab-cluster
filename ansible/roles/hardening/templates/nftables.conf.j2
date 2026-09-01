@@ -1,0 +1,58 @@
+#!/usr/sbin/nft -f
+# Managed by Ansible. Host firewall for a k3s server node.
+# Only our own table is (re)created — NEVER `flush ruleset` here, k3s/kube-proxy keep
+# their rules in separate iptables-nft tables and would be wiped.
+
+table inet host_fw
+delete table inet host_fw
+
+table inet host_fw {
+  set lan {
+    type ipv4_addr; flags interval
+    elements = { {{ hardening_lan_cidrs | join(', ') }} }
+  }
+  set nodes {
+    type ipv4_addr
+    elements = { {% for h in groups['k3s_cluster'] %}{{ hostvars[h].ansible_host }}{{ ', ' if not loop.last }}{% endfor %} }
+  }
+  set cluster {
+    type ipv4_addr; flags interval
+    elements = { {{ k3s_cluster_cidr }}, {{ k3s_service_cidr }} }
+  }
+
+  chain input {
+    type filter hook input priority filter; policy drop;
+
+    iif "lo" accept
+    ct state established,related accept
+    ct state invalid drop
+
+    # ICMP / NDP: keep the network debuggable
+    ip protocol icmp icmp type { echo-request, destination-unreachable, time-exceeded, parameter-problem } accept
+    ip6 nexthdr icmpv6 accept
+
+    # cluster fabric: pod/service CIDRs, CNI interfaces, tailnet
+    iifname { "cni0", "flannel.1", "tailscale0" } accept
+    ip saddr @cluster accept
+
+    # node ↔ node: etcd 2379-2380, kubelet 10250, vxlan 8472/udp, supervisor 9345,
+    # control-plane metrics 10257/10259/10249/2381, node-exporter 9100
+    ip saddr @nodes accept
+
+    # Tailscale direct connections (WireGuard)
+    udp dport 41641 accept
+
+    # DHCP client
+    udp sport 67 udp dport 68 accept
+
+    # LAN: ssh, ingress (Traefik via ServiceLB), Kubernetes API
+    ip saddr @lan tcp dport { 22, 80, 443, 6443 } accept
+{% for rule in hardening_extra_nft_input_rules %}
+    {{ rule }}
+{% endfor %}
+
+    limit rate 5/minute log prefix "host_fw drop: " counter
+    counter drop
+  }
+  # forward/output are intentionally not defined: kube-proxy/flannel own forwarding.
+}

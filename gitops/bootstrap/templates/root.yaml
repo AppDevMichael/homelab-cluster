@@ -1,0 +1,30 @@
+# The root app also manages itself, so edits to this chart in git take effect without Tofu.
+# Tofu seeds an identical object on first install; ArgoCD adopts it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: "{{ .Values.repo.url }}"
+    targetRevision: "{{ .Values.repo.revision }}"
+    path: gitops/bootstrap
+    helm:
+      parameters:
+        - name: repo.url
+          value: "{{ .Values.repo.url }}"
+        - name: repo.revision
+          value: "{{ .Values.repo.revision }}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

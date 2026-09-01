@@ -1,0 +1,121 @@
+# kube-prometheus-stack values — sized for three arm64 SBCs. Everything is multi-arch.
+# Edit the node IPs + Grafana host below to match your LAN.
+
+fullnameOverride: kps
+
+crds:
+  upgradeJob:
+    enabled: true        # keeps CRDs current on chart bumps (Helm won't upgrade CRDs by itself)
+
+grafana:
+  enabled: true
+  admin:
+    existingSecret: grafana-admin     # created by Tofu, never in git
+    userKey: admin-user
+    passwordKey: admin-password
+  defaultDashboardsTimezone: browser
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - grafana.192.168.69.101.nip.io  # <- change
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClassName: longhorn-encrypted
+  deploymentStrategy:
+    type: Recreate         # RWO volume: don't try to run old+new pod at once during rollouts
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { memory: 256Mi }
+  grafana.ini:
+    analytics: { check_for_updates: false, reporting_enabled: false }
+    users: { default_theme: dark }
+    dashboards: { default_home_dashboard_path: /var/lib/grafana/dashboards/community/k8s-views-global.json }
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: community
+          orgId: 1
+          folder: Community
+          type: file
+          disableDeletion: false
+          options:
+            path: /var/lib/grafana/dashboards/community
+  dashboards:
+    community:
+      k8s-views-global:   { gnetId: 15757, revision: 43, datasource: Prometheus }
+      k8s-views-nodes:    { gnetId: 15759, revision: 37, datasource: Prometheus }
+      node-exporter-full: { gnetId: 1860,  revision: 37, datasource: Prometheus }
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    retentionSize: 15GB
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits:   { memory: 1Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn-encrypted
+          accessModes: [ReadWriteOnce]
+          resources: { requests: { storage: 20Gi } }
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn-encrypted
+          accessModes: [ReadWriteOnce]
+          resources: { requests: { storage: 1Gi } }
+    resources:
+      requests: { cpu: 20m, memory: 64Mi }
+      limits:   { memory: 128Mi }
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits:   { memory: 64Mi }
+  extraArgs:
+    - --collector.hwmon
+    - --collector.thermal_zone
+kube-state-metrics:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits:   { memory: 128Mi }
+prometheusOperator:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { memory: 256Mi }
+
+# k3s control plane — all three nodes are servers. Ansible sets bind-address=0.0.0.0 for these.
+kubeControllerManager:
+  enabled: true
+  endpoints: &nodes [192.168.69.101, 192.168.69.102, 192.168.69.103]   # <- change
+  service: { port: 10257, targetPort: 10257 }
+  serviceMonitor: { https: true, insecureSkipVerify: true }
+kubeScheduler:
+  enabled: true
+  endpoints: *nodes
+  service: { port: 10259, targetPort: 10259 }
+  serviceMonitor: { https: true, insecureSkipVerify: true }
+kubeProxy:
+  enabled: true
+  endpoints: *nodes
+kubeEtcd:
+  enabled: true
+  endpoints: *nodes
+  service: { port: 2381, targetPort: 2381 }

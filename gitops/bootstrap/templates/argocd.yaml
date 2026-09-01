@@ -1,0 +1,27 @@
+# ArgoCD manages itself. Same chart + values Tofu used to bootstrap; Tofu ignores drift afterwards.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 10.4.2
+      helm:
+        releaseName: argocd
+        valueFiles:
+          - $values/gitops/argocd/values.yaml
+    - repoURL: "{{ .Values.repo.url }}"
+      targetRevision: "{{ .Values.repo.revision }}"
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  {{- include "bootstrap.syncPolicy" . | nindent 2 }}

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: system-upgrade
+resources:
+  - https://github.com/rancher/system-upgrade-controller/releases/download/v0.18.0/crd.yaml
+  - https://github.com/rancher/system-upgrade-controller/releases/download/v0.18.0/system-upgrade-controller.yaml
+  - plan-k3s.yaml
+patches:
+  # upgrade jobs run privileged (host root mounted, CAP_SYS_BOOT) — exempt the namespace from baseline PSA
+  - target: { kind: Namespace, name: system-upgrade }
+    patch: |
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1enforce
+        value: privileged

@@ -1,0 +1,46 @@
+# Managed by Ansible — /etc/rancher/k3s/config.yaml
+token: "{{ k3s_token }}"
+node-name: "{{ inventory_hostname }}"
+node-ip: "{{ ansible_host }}"
+write-kubeconfig-mode: "0644"
+{% if k3s_role == 'init' %}
+cluster-init: true
+{% else %}
+server: "https://{{ hostvars[groups['k3s_init'][0]].ansible_host }}:6443"
+{% endif %}
+tls-san:
+{% for h in groups['k3s_cluster'] %}
+  - "{{ hostvars[h].ansible_host }}"
+{% if hostvars[h].tailscale_ip is defined %}
+  - "{{ hostvars[h].tailscale_ip }}"
+  - "{{ hostvars[h].tailscale_dns }}"
+{% endif %}
+{% endfor %}
+{% for san in k3s_extra_tls_sans %}
+  - "{{ san }}"
+{% endfor %}
+# --- hardening / housekeeping ---
+secrets-encryption: true
+protect-kernel-defaults: true
+etcd-snapshot-schedule-cron: "0 */6 * * *"
+etcd-snapshot-retention: 12
+cluster-cidr: "{{ k3s_cluster_cidr }}"
+service-cidr: "{{ k3s_service_cidr }}"
+kube-apiserver-arg:
+  - "anonymous-auth=false"
+  - "admission-control-config-file=/etc/rancher/k3s/psa.yaml"
+  - "audit-log-path=/var/lib/rancher/k3s/server/logs/audit.log"
+  - "audit-log-maxage=7"
+  - "audit-log-maxbackup=3"
+  - "audit-log-maxsize=50"
+  - "audit-policy-file=/etc/rancher/k3s/audit-policy.yaml"
+kubelet-arg:
+  - "max-pods=110"
+# Expose control-plane metrics so Prometheus can scrape them
+etcd-expose-metrics: true
+kube-controller-manager-arg:
+  - "bind-address=0.0.0.0"
+kube-scheduler-arg:
+  - "bind-address=0.0.0.0"
+kube-proxy-arg:
+  - "metrics-bind-address=0.0.0.0"

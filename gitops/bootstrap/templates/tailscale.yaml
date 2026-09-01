@@ -1,0 +1,31 @@
+{{- if .Values.tailscale.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://pkgs.tailscale.com/helmcharts
+      chart: tailscale-operator
+      targetRevision: 1.102.3
+      helm:
+        releaseName: tailscale-operator
+        valueFiles:
+          - $values/gitops/tailscale/values.yaml
+    - repoURL: "{{ .Values.repo.url }}"
+      targetRevision: "{{ .Values.repo.revision }}"
+      ref: values
+    - repoURL: "{{ .Values.repo.url }}"
+      targetRevision: "{{ .Values.repo.revision }}"
+      path: gitops/tailscale/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  {{- include "bootstrap.syncPolicy" . | nindent 2 }}
+{{- end }}

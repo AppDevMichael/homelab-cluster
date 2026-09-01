@@ -1,0 +1,74 @@
+---
+- name: Add Tailscale apt signing key
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/{{ ansible_distribution | lower }}/{{ ansible_distribution_release }}.noarmor.gpg"
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    mode: "0644"
+
+- name: Add Tailscale apt repository
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: deb
+    uris: "https://pkgs.tailscale.com/stable/{{ ansible_distribution | lower }}"
+    suites: "{{ ansible_distribution_release }}"
+    components: main
+    signed_by: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    state: present
+
+- name: Install tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: true
+
+- name: Enable tailscaled
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Check current Tailscale state
+  ansible.builtin.command: tailscale status --json
+  register: ts_status
+  changed_when: false
+  failed_when: false
+
+- name: Bring Tailscale up
+  ansible.builtin.command: >
+    tailscale up
+    --authkey={{ tailscale_authkey }}
+    --hostname={{ inventory_hostname }}
+    {{ '--ssh' if tailscale_ssh else '' }}
+    {{ '--advertise-routes=' ~ (tailscale_advertise_routes | join(',')) if tailscale_advertise_routes else '' }}
+    {{ tailscale_extra_args }}
+  when: (ts_status.stdout | default('{}') | from_json).BackendState | default('') != 'Running'
+  no_log: true
+
+- name: Enable Tailscale self-update
+  ansible.builtin.command: tailscale set --auto-update={{ 'true' if tailscale_auto_update else 'false' }}
+  changed_when: false
+
+- name: Get Tailscale IPv4 address
+  ansible.builtin.command: tailscale ip -4
+  register: ts_ip
+  changed_when: false
+  retries: 10
+  delay: 3
+  until: ts_ip.rc == 0 and ts_ip.stdout | length > 0
+
+- name: Record Tailscale IP as a host fact
+  ansible.builtin.set_fact:
+    tailscale_ip: "{{ ts_ip.stdout | trim }}"
+
+- name: Get Tailscale MagicDNS name
+  ansible.builtin.shell: tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")'
+  register: ts_dns
+  changed_when: false
+
+- name: Record Tailscale DNS name as a host fact
+  ansible.builtin.set_fact:
+    tailscale_dns: "{{ ts_dns.stdout | trim }}"
+
+- name: Show Tailscale identity
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }} → {{ tailscale_ip }} ({{ tailscale_dns }})"

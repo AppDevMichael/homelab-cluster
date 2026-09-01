@@ -1,0 +1,38 @@
+# Applies to every volume that has no explicit recurring-job labels (the "default" group).
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: snapshot-6h
+  namespace: longhorn-system
+spec:
+  task: snapshot
+  cron: "0 */6 * * *"
+  retain: 4
+  concurrency: 2
+  groups: [default]
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: backup-daily
+  namespace: longhorn-system
+spec:
+  task: backup            # incremental, block-level, to the Storage Box — encrypted because the volumes are
+  cron: "30 1 * * *"      # before kured's reboot window
+  retain: 14
+  concurrency: 1
+  groups: [default]
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: backup-weekly
+  namespace: longhorn-system
+spec:
+  task: backup
+  cron: "0 0 * * 0"
+  retain: 8
+  concurrency: 1
+  groups: [default]
+  labels:
+    schedule: weekly

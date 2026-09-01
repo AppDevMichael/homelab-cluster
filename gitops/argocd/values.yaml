@@ -1,0 +1,43 @@
+# argo/argo-cd values — sized for three arm64 SBCs.
+global:
+  domain: argocd.192.168.1.101.nip.io      # <- change to a node IP or a real hostname
+
+configs:
+  params:
+    server.insecure: true                  # TLS terminated by Traefik / Tailscale
+    controller.diff.server.side: "true"
+  cm:
+    timeout.reconciliation: 180s
+    resource.customizations.ignoreDifferences.all: |
+      managedFieldsManagers:
+        - kube-controller-manager
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { memory: 256Mi }
+
+controller:
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits:   { memory: 1Gi }
+
+repoServer:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { memory: 512Mi }
+
+applicationSet:
+  enabled: false        # not used; saves ~100Mi
+dex:
+  enabled: false        # local admin login only; enable for SSO
+notifications:
+  enabled: false
+
+redis:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits:   { memory: 128Mi }

@@ -1,0 +1,203 @@
+---
+# ---------------------------------------------------------------------------
+# 1. Admin user + SSH keys (so we can safely turn off root/password login)
+# ---------------------------------------------------------------------------
+- name: Fail if no SSH public keys were provided
+  ansible.builtin.assert:
+    that: hardening_ssh_pubkeys | length > 0
+    fail_msg: "hardening_ssh_pubkeys is empty — set it in group_vars/all.yml or you'll lock yourself out."
+
+- name: Create admin user
+  ansible.builtin.user:
+    name: "{{ hardening_admin_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: true
+    create_home: true
+
+- name: Install SSH keys for admin user
+  ansible.posix.authorized_key:
+    user: "{{ hardening_admin_user }}"
+    key: "{{ item }}"
+    exclusive: false
+  loop: "{{ hardening_ssh_pubkeys }}"
+
+- name: Passwordless sudo for admin user
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/90-{{ hardening_admin_user }}"
+    content: "{{ hardening_admin_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+# ---------------------------------------------------------------------------
+# 2. sshd
+# ---------------------------------------------------------------------------
+- name: Install hardened sshd drop-in
+  ansible.builtin.template:
+    src: sshd_hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    mode: "0600"
+    validate: "sshd -t -f %s"
+  notify: restart sshd
+
+- name: Remove weak host keys (keep ed25519 + rsa)
+  ansible.builtin.file:
+    path: "/etc/ssh/ssh_host_{{ item }}_key"
+    state: absent
+  loop: [dsa, ecdsa]
+  notify: restart sshd
+
+- name: Lock root password (console login still possible via admin user + sudo)
+  ansible.builtin.user:
+    name: root
+    password_lock: true
+  when: hardening_lock_root_password
+
+# ---------------------------------------------------------------------------
+# 3. Host firewall (nftables) — coexists with k3s's own iptables-nft rules
+# ---------------------------------------------------------------------------
+- name: Install nftables
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+
+- name: Ensure ufw/firewalld are absent (they fight k3s)
+  ansible.builtin.apt:
+    name: [ufw, firewalld]
+    state: absent
+    purge: true
+
+- name: Render nftables ruleset
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    mode: "0600"
+    validate: "nft -c -f %s"
+  notify: reload nftables
+
+- name: Enable nftables
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started
+
+# ---------------------------------------------------------------------------
+# 4. Kernel / sysctl hardening (in addition to the k8s sysctls in `common`)
+# ---------------------------------------------------------------------------
+- name: Security sysctls
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/98-hardening.conf
+    reload: true
+  loop: "{{ hardening_sysctls | dict2items }}"
+  vars:
+    hardening_sysctls:
+      # network
+      net.ipv4.conf.all.rp_filter: 2            # loose — strict (1) breaks some CNI paths
+      net.ipv4.conf.default.rp_filter: 2
+      net.ipv4.conf.all.accept_redirects: 0
+      net.ipv4.conf.default.accept_redirects: 0
+      net.ipv4.conf.all.secure_redirects: 0
+      net.ipv4.conf.all.send_redirects: 0
+      net.ipv4.conf.default.send_redirects: 0
+      net.ipv4.conf.all.accept_source_route: 0
+      net.ipv4.conf.all.log_martians: 1
+      net.ipv4.icmp_echo_ignore_broadcasts: 1
+      net.ipv4.icmp_ignore_bogus_error_responses: 1
+      net.ipv4.tcp_syncookies: 1
+      net.ipv6.conf.all.accept_redirects: 0
+      net.ipv6.conf.all.accept_ra: 0
+      net.ipv6.conf.all.accept_source_route: 0
+      # kernel
+      kernel.kptr_restrict: 2
+      kernel.dmesg_restrict: 1
+      kernel.unprivileged_bpf_disabled: 1
+      kernel.yama.ptrace_scope: 1
+      kernel.sysrq: 0
+      kernel.perf_event_paranoid: 3
+      # fs
+      fs.protected_hardlinks: 1
+      fs.protected_symlinks: 1
+      fs.protected_fifos: 2
+      fs.protected_regular: 2
+      fs.suid_dumpable: 0
+  failed_when: false        # some keys don't exist on every Armbian kernel
+
+- name: Blacklist unused kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/hardening-blacklist.conf
+    content: |
+      # uncommon network / filesystem modules with a history of CVEs
+      {% for m in hardening_blacklist_modules %}
+      install {{ m }} /bin/false
+      {% endfor %}
+
+# ---------------------------------------------------------------------------
+# 5. Services, logging, brute-force protection
+# ---------------------------------------------------------------------------
+- name: Disable unneeded services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+    masked: true
+  loop: "{{ hardening_disable_services }}"
+  failed_when: false
+
+- name: Cap journald size (protects the SD card, keeps logs useful)
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/size.conf
+    content: |
+      [Journal]
+      SystemMaxUse=200M
+      MaxRetentionSec=14day
+      Compress=yes
+  notify: restart journald
+
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+
+- name: fail2ban sshd jail
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    content: |
+      [DEFAULT]
+      backend = systemd
+      banaction = nftables-multiport
+      ignoreip = 127.0.0.1/8 100.64.0.0/10 {{ hardening_lan_cidrs | join(' ') }}
+      bantime  = 1h
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+  notify: restart fail2ban
+
+- name: Enable fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: Restrictive default umask + login.defs
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^{{ item.key }}\\s"
+    line: "{{ item.key }} {{ item.value }}"
+  loop:
+    - { key: UMASK, value: "027" }
+    - { key: PASS_MAX_DAYS, value: "365" }
+    - { key: PASS_MIN_DAYS, value: "1" }
+    - { key: SHA_CRYPT_MIN_ROUNDS, value: "640000" }
+
+- name: Tighten permissions on sensitive files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0600"
+  loop:
+    - /etc/rancher     # may not exist yet, handled by failed_when
+    - /boot/armbianEnv.txt
+  failed_when: false

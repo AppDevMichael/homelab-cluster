@@ -1,0 +1,15 @@
+# Managed by Ansible
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {{ fb_iface }}:
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - {{ hostvars[inventory_hostname].ansible_host }}/{{ static_ip_prefix }}
+      routes:
+        - to: default
+          via: {{ static_ip_gateway }}
+      nameservers:
+        addresses: {{ static_ip_dns | to_json }}

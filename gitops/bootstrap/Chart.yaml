@@ -1,0 +1,5 @@
+apiVersion: v2
+name: bootstrap
+description: App-of-apps — one ArgoCD Application per component. Versions live in templates/ so Renovate can bump them.
+type: application
+version: 0.1.0

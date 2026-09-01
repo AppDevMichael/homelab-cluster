@@ -1,0 +1,26 @@
+# Keeps k3s on the latest patch of the pinned minor. All three nodes are servers, so one plan.
+# Bump the minor here (and k3s_version in Ansible for fresh installs) deliberately — one minor at a time.
+apiVersion: upgrade.cattle.io/v1
+kind: Plan
+metadata:
+  name: k3s-server
+  namespace: system-upgrade
+spec:
+  concurrency: 1                 # one node at a time — etcd quorum stays intact
+  channel: https://update.k3s.io/v1-release/channels/v1.36
+  cordon: true
+  drain:
+    force: true
+    skipWaitForDeleteTimeout: 60
+    ignoreDaemonSets: true
+    deleteEmptydirData: true
+  serviceAccountName: system-upgrade
+  nodeSelector:
+    matchExpressions:
+      - { key: node-role.kubernetes.io/control-plane, operator: In, values: ["true"] }
+      - { key: k3s-upgrade, operator: NotIn, values: ["disabled", "false"] }   # label a node to opt it out
+  tolerations:
+    - { key: CriticalAddonsOnly, operator: Exists }
+    - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
+  upgrade:
+    image: rancher/k3s-upgrade

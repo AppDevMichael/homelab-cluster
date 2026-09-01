@@ -1,0 +1,20 @@
+#!/bin/bash
+# Managed by Ansible. Pushes the newest etcd snapshot + k3s config off-site, encrypted.
+set -euo pipefail
+set -a; . /etc/restic/env; set +a
+export RESTIC_SFTP_COMMAND
+r() { restic -o "sftp.command=$RESTIC_SFTP_COMMAND" "$@"; }
+
+# take a fresh on-demand snapshot so the backup is never older than the cron schedule
+k3s etcd-snapshot save --name backup >/dev/null 2>&1 || true
+
+r backup --tag etcd --tag "{{ inventory_hostname }}" --host "{{ inventory_hostname }}" \
+  /var/lib/rancher/k3s/server/db/snapshots \
+  /etc/rancher/k3s
+
+{% if inventory_hostname == groups['k3s_init'][0] %}
+# only one node prunes, to avoid lock contention
+r forget --tag etcd --group-by host --keep-daily 7 --keep-weekly 4 --keep-monthly 3 --prune
+r check --read-data-subset=5% || logger -t k3s-backup "restic check reported problems"
+{% endif %}
+logger -t k3s-backup "backup ok"

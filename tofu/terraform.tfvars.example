@@ -1,0 +1,17 @@
+kubeconfig_path = "../kubeconfig"
+
+# Push this repo somewhere ArgoCD can reach (GitHub/GitLab/Gitea...) and put the URL here.
+git_repo_url = "https://github.com/YOU/opi-k8s.git"
+git_revision = "main"
+# git_ssh_private_key = file("~/.ssh/opi-k8s-deploy-key")   # private repo via SSH URL
+
+# grafana_admin_password = "something-strong"                 # empty = random, `make grafana-password`
+
+# Tailscale operator (optional) — setting a client id enables it
+# tailscale_oauth_client_id     = "k..."
+# tailscale_oauth_client_secret = "tskey-client-..."
+
+# ---- Backups ----
+# backup_key comes from the environment: TF_VAR_backup_key=$(scripts/backup-key.sh)  (the Makefile does this)
+storagebox_user     = "u123456"
+storagebox_password = "..."      # Longhorn's SMB backup target needs the password; restic on the nodes uses an SSH key

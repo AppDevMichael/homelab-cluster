@@ -1,0 +1,135 @@
+---
+# Moves the OS onto the NVMe. Layout afterwards (same as armbian-install's "boot from SD, system on NVMe"):
+#   SD card : u-boot + /boot (kernel, armbianEnv.txt)  — also keeps a bootable fallback copy of the OS
+#   NVMe    : root filesystem (everything else, incl. /var/lib/rancher and /var/lib/longhorn)
+# Full NVMe boot (u-boot in SPI flash) is board-specific and left manual — see README.
+
+- name: Where is / right now?
+  ansible.builtin.command: findmnt -no SOURCE /
+  register: root_src
+  changed_when: false
+
+- name: Skip if root is already on NVMe
+  ansible.builtin.set_fact:
+    nvme_done: "{{ 'nvme' in root_src.stdout }}"
+
+- name: NVMe migration
+  when: not nvme_done
+  block:
+    - name: NVMe present?
+      ansible.builtin.stat:
+        path: "{{ nvme_device }}"
+      register: nvme_dev
+
+    - name: Fail if no NVMe (set nvme_enabled=false to run from SD)
+      ansible.builtin.assert:
+        that: nvme_dev.stat.exists
+        fail_msg: "{{ nvme_device }} not found on {{ inventory_hostname }}"
+
+    - name: Install tools
+      ansible.builtin.apt:
+        name: [parted, rsync, e2fsprogs, util-linux]
+        state: present
+        update_cache: true
+
+    - name: Existing partitions on NVMe
+      ansible.builtin.command: lsblk -nro NAME,FSTYPE {{ nvme_device }}
+      register: nvme_parts
+      changed_when: false
+
+    - name: Refuse to wipe a used disk unless told to
+      ansible.builtin.assert:
+        that: (nvme_parts.stdout_lines | length <= 1) or nvme_wipe
+        fail_msg: "{{ nvme_device }} already has partitions. Set nvme_wipe=true to destroy them."
+
+    - name: Partition (GPT, one partition)
+      community.general.parted:
+        device: "{{ nvme_device }}"
+        label: gpt
+        number: 1
+        state: present
+        part_start: "1MiB"
+        part_end: "100%"
+        fs_type: ext4
+
+    - name: Format
+      community.general.filesystem:
+        fstype: ext4
+        dev: "{{ nvme_device }}p1"
+        opts: -L nvme_root
+        force: "{{ nvme_wipe }}"
+
+    - name: Mount target
+      ansible.posix.mount:
+        path: /mnt/nvme
+        src: "{{ nvme_device }}p1"
+        fstype: ext4
+        state: mounted
+
+    - name: Copy the root filesystem (a few minutes)
+      ansible.builtin.command: >
+        rsync -aAXH --numeric-ids --info=progress2
+        --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/*
+        --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/var/cache/apt/archives/*
+        / /mnt/nvme/
+      changed_when: true
+
+    - name: UUIDs
+      ansible.builtin.shell: |
+        echo "nvme=$(blkid -s UUID -o value {{ nvme_device }}p1)"
+        echo "sd=$(blkid -s UUID -o value $(findmnt -no SOURCE /))"
+      register: uuids
+      changed_when: false
+
+    - name: Parse UUIDs
+      ansible.builtin.set_fact:
+        nvme_uuid: "{{ (uuids.stdout_lines | select('match', '^nvme=') | first).split('=')[1] }}"
+        sd_uuid: "{{ (uuids.stdout_lines | select('match', '^sd=') | first).split('=')[1] }}"
+
+    # /boot must stay on the SD so u-boot (and kernel updates) find it: mount the SD partition,
+    # bind its /boot directory over /boot on the NVMe root.
+    - name: fstab on the new root
+      ansible.builtin.copy:
+        dest: /mnt/nvme/etc/fstab
+        content: |
+          UUID={{ nvme_uuid }}  /            ext4  defaults,noatime,commit=120,errors=remount-ro  0 1
+          UUID={{ sd_uuid }}    /media/sd    ext4  defaults,noatime,nofail                        0 2
+          /media/sd/boot        /boot        none  bind,nofail                                    0 0
+          tmpfs                 /tmp         tmpfs defaults,nosuid                                0 0
+
+    - name: Mountpoint on new root
+      ansible.builtin.file:
+        path: /mnt/nvme/media/sd
+        state: directory
+
+    - name: Point the SD's bootloader at the NVMe root
+      ansible.builtin.lineinfile:
+        path: /boot/armbianEnv.txt
+        regexp: '^rootdev='
+        line: "rootdev=UUID={{ nvme_uuid }}"
+
+    - name: Keep a note on the SD of how to roll back
+      ansible.builtin.copy:
+        dest: /boot/ROLLBACK.txt
+        content: |
+          Root is on NVMe (UUID={{ nvme_uuid }}). To boot the SD's own OS again:
+            sed -i 's/^rootdev=.*/rootdev=UUID={{ sd_uuid }}/' armbianEnv.txt
+
+    - name: Unmount target
+      ansible.posix.mount:
+        path: /mnt/nvme
+        state: unmounted
+
+    - name: Reboot onto the NVMe
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+
+    - name: Verify
+      ansible.builtin.command: findmnt -no SOURCE /
+      register: root_after
+      failed_when: "'nvme' not in root_after.stdout"
+      changed_when: false
+
+- name: Root filesystem location
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: / is on {{ root_src.stdout }}{{ ' (already NVMe, nothing to do)' if nvme_done else ' → migrated to NVMe' }}"

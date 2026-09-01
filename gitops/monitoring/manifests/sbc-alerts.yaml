@@ -1,0 +1,54 @@
+# Extra alerts that matter on small boards. Picked up by Prometheus via ruleSelectorNilUsesHelmValues=false.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sbc-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: sbc
+      rules:
+        - alert: SoCTemperatureHigh
+          expr: max by (instance) (node_thermal_zone_temp) > 80
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.instance }} SoC at {{ $value | printf \"%.0f\" }}°C"
+        - alert: SoCTemperatureCritical
+          expr: max by (instance) (node_thermal_zone_temp) > 90
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.instance }} SoC at {{ $value | printf \"%.0f\" }}°C — throttling likely"
+        - alert: RootFilesystemNearlyFull
+          expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.10
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.instance }} root filesystem under 10% free"
+        - alert: NodeMemoryPressure
+          expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.10
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.instance }} has <10% memory available"
+    - name: backups
+      rules:
+        - alert: LonghornVolumeDegraded
+          expr: longhorn_volume_robustness == 2
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Longhorn volume {{ $labels.volume }} is degraded (a replica is missing)"
+        - alert: LonghornBackupTargetUnavailable
+          expr: longhorn_backup_target_available == 0
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Longhorn can't reach the backup target (Storage Box)"
+        - alert: LonghornVolumeNoRecentBackup
+          expr: (time() - longhorn_volume_last_backup_timestamp) > 60*60*36 unless on (volume) longhorn_volume_last_backup_timestamp == 0
+          for: 1h
+          labels: { severity: warning }
+          annotations:
+            summary: "Longhorn volume {{ $labels.volume }} has no backup in 36h"

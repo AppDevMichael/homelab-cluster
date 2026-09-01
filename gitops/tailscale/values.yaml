@@ -1,0 +1,12 @@
+# tailscale/tailscale-operator values. OAuth creds come from the operator-oauth Secret created by Tofu.
+oauth: {}
+operatorConfig:
+  hostname: tailscale-operator
+  logging: info
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits:   { memory: 128Mi }
+apiServerProxyConfig:
+  mode: "true"      # `tailscale configure kubeconfig tailscale-operator` → kubectl over the tailnet
+proxyConfig:
+  defaultTags: tag:k8s

@@ -1,0 +1,21 @@
+// Managed by Ansible. Overrides /etc/apt/apt.conf.d/50unattended-upgrades.
+Unattended-Upgrade::Origins-Pattern {
+    "{{ updates_security_origin }}";
+{% if updates_include_armbian_repo %}
+    "origin=Armbian";
+{% endif %}
+};
+Unattended-Upgrade::Package-Blacklist {
+{% for p in updates_blacklist %}
+    "{{ p }}";
+{% endfor %}
+};
+Unattended-Upgrade::Automatic-Reboot "false";        // kured reboots nodes, one at a time, drained
+Unattended-Upgrade::MinimalSteps "true";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::SyslogEnable "true";
+{% if updates_mail_to %}
+Unattended-Upgrade::Mail "{{ updates_mail_to }}";
+Unattended-Upgrade::MailReport "on-change";
+{% endif %}

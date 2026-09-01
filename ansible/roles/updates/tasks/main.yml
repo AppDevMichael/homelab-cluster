@@ -1,0 +1,59 @@
+---
+- name: Install update tooling
+  ansible.builtin.apt:
+    name: [unattended-upgrades, apt-listchanges, needrestart]
+    state: present
+
+- name: Detect distro family for security origin pattern
+  ansible.builtin.set_fact:
+    updates_security_origin: >-
+      {{ 'origin=Debian,codename=${distro_codename},label=Debian-Security'
+         if ansible_distribution == 'Debian'
+         else 'origin=Ubuntu,archive=${distro_codename}-security' }}
+
+- name: Configure unattended-upgrades policy
+  ansible.builtin.template:
+    src: 52unattended-upgrades-local.j2
+    dest: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    mode: "0644"
+
+- name: Turn the daily update/upgrade timers on
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+- name: Enable apt timers (Armbian ships them disabled on some images)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: [apt-daily.timer, apt-daily-upgrade.timer]
+
+# needrestart: restart affected services automatically after library updates, and flag
+# kernel updates in /var/run/reboot-required (Debian has no update-notifier; kured watches that file).
+- name: needrestart – restart services automatically, never prompt
+  ansible.builtin.copy:
+    dest: /etc/needrestart/conf.d/50-auto.conf
+    mode: "0644"
+    content: |
+      $nrconf{restart} = 'a';
+      $nrconf{kernelhints} = -1;
+      $nrconf{ucodehints} = 0;
+
+- name: Flag pending kernel upgrades for kured after every apt run
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/99reboot-required
+    mode: "0644"
+    content: |
+      DPkg::Post-Invoke { "if command -v needrestart >/dev/null 2>&1; then needrestart -b 2>/dev/null | grep -q 'NEEDRESTART-KSTA: [23]' && touch /var/run/reboot-required || true; fi"; };
+
+- name: Dry-run unattended-upgrades to verify the config parses
+  ansible.builtin.command: unattended-upgrade --dry-run --debug
+  register: uu_dry
+  changed_when: false
+  failed_when: uu_dry.rc != 0

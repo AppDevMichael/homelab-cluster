@@ -1,0 +1,19 @@
+apiVersion: audit.k8s.io/v1
+kind: Policy
+omitStages: [RequestReceived]
+rules:
+  # noisy, low-value
+  - level: None
+    users: ["system:kube-proxy", "system:apiserver", "system:kube-scheduler", "system:kube-controller-manager"]
+  - level: None
+    nonResourceURLs: ["/healthz*", "/readyz*", "/livez*", "/metrics", "/version"]
+  - level: None
+    resources: [{ group: "", resources: ["events"] }]
+  # secrets: log that it happened, never the body
+  - level: Metadata
+    resources: [{ group: "", resources: ["secrets", "configmaps", "serviceaccounts/token"] }]
+  # everything else: metadata for reads, request bodies for writes
+  - level: Metadata
+    verbs: [get, list, watch]
+  - level: Request
+    verbs: [create, update, patch, delete, deletecollection]

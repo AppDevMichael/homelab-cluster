@@ -1,0 +1,5 @@
+---
+- name: reboot node
+  ansible.builtin.reboot:
+    msg: "Reboot for swap/cgroup changes"
+    reboot_timeout: 300
