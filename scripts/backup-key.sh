@@ -12,6 +12,7 @@
 set -euo pipefail
 
 PUBKEY="${BACKUP_SSH_PUBKEY:-$HOME/.ssh/id_ed25519.pub}"
+PUBKEY="${PUBKEY/#\~/$HOME}"          # .env is not shell-expanded by mise; allow ~/…
 NAMESPACE="opi-k8s-backup"       # changing this or the message changes the derived key
 MESSAGE="opi-k8s cluster backup key v1"
 

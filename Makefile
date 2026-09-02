@@ -2,11 +2,10 @@
 SHELL := /bin/bash
 export BACKUP_KEY ?= $(shell scripts/backup-key.sh 2>/dev/null)
 export TF_VAR_backup_key := $(BACKUP_KEY)
-export TF_VAR_storagebox_user := $(STORAGEBOX_USER)
 
 .PHONY: help deps lint bootstrap argocd all nodes apps key argocd-password grafana-password \
         backup-config backup-restore-config restore-volumes os-upgrade destroy state-migrate state-show \
-        kernel kernel-install kernel-clean
+        kernel kernel-install kernel-clean spi-boot
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s$$'\t'
@@ -28,6 +27,9 @@ kernel:            ## build the custom vendor kernel (dm-crypt/iSCSI/CIFS, headl
 
 kernel-install:    ## install/upgrade kernel/debs/ on the nodes one at a time (drains if k3s is up); LIMIT=opi-2 for a canary
 	cd ansible && ansible-playbook kernel.yml $(if $(LIMIT),-l $(LIMIT),)
+
+spi-boot:          ## u-boot → SPI NOR, /boot → NVMe, one node at a time; then pull the SD cards. LIMIT=opi-2 for a canary
+	cd ansible && ansible-playbook spi-boot.yml $(if $(LIMIT),-l $(LIMIT),)
 
 kernel-clean:      ## delete the armbian/build checkout and its caches (~15 GB)
 	rm -rf kernel/build

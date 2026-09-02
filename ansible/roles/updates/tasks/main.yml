@@ -54,6 +54,7 @@
 
 - name: Dry-run unattended-upgrades to verify the config parses
   ansible.builtin.command: unattended-upgrade --dry-run --debug
+  timeout: 300              # a hung connection here once stalled the whole bootstrap silently
   register: uu_dry
   changed_when: false
   failed_when: uu_dry.rc != 0

@@ -55,13 +55,21 @@ variable "backup_key" {
   sensitive   = true
 }
 
-variable "storagebox_user" {
-  description = "Hetzner Storage Box user (TF_VAR_storagebox_user or tfvars)"
+# Longhorn volume backups go to an S3-compatible bucket (Backblaze B2 / Hetzner Object Storage / ...): the Storage
+# Box only speaks SFTP + SMB, and residential ISPs (ours included) block SMB port 445. Bucket + region + path are
+# NOT secret and live in gitops/longhorn/values.yaml (backupTarget); only these three are secrets.
+variable "longhorn_s3_endpoint" {
+  description = "S3 endpoint URL, e.g. https://s3.eu-central-003.backblazeb2.com"
   type        = string
 }
 
-variable "storagebox_password" {
-  description = "Storage Box password — used by Longhorn for SMB (SSH keys aren't an option for CIFS)"
+variable "longhorn_s3_access_key" {
+  description = "S3 access key id (a key scoped to the Longhorn bucket only)"
   type        = string
   sensitive   = true
+}
+
+variable "longhorn_s3_secret_key" {
+  type      = string
+  sensitive = true
 }

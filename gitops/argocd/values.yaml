@@ -1,6 +1,6 @@
 # argo/argo-cd values — sized for three arm64 SBCs.
 global:
-  domain: argocd.192.168.1.101.nip.io      # <- change to a node IP or a real hostname
+  domain: argocd.192.168.69.101.nip.io      # <- change to a node IP or a real hostname
 
 configs:
   params:

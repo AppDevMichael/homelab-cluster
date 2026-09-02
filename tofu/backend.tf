@@ -11,21 +11,21 @@
 
 terraform {
   backend "kubernetes" {
-    secret_suffix = "opi-k8s"       # Secret name: tfstate-default-opi-k8s
+    secret_suffix = "opi-k8s" # Secret name: tfstate-default-opi-k8s
     namespace     = "kube-system"
     config_path   = "../kubeconfig"
   }
 
   encryption {
     key_provider "pbkdf2" "backup_key" {
-      passphrase = var.backup_key   # same key as backups — export BACKUP_KEY=$(scripts/backup-key.sh)
+      passphrase = var.backup_key # same key as backups — export BACKUP_KEY=$(scripts/backup-key.sh)
     }
     method "aes_gcm" "default" {
       keys = key_provider.pbkdf2.backup_key
     }
     state {
       method   = method.aes_gcm.default
-      enforced = true                # refuse to write unencrypted state, ever
+      enforced = true # refuse to write unencrypted state, ever
     }
     plan {
       method   = method.aes_gcm.default

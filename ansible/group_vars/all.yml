@@ -25,6 +25,7 @@ static_ip_dns: ["192.168.68.60", "1.1.1.1"]
 nvme_enabled: true                   # move root to NVMe on first run (boot stays on SD)
 nvme_device: /dev/nvme0n1
 nvme_wipe: true                     # true = destroy existing partitions on the NVMe
+nvme_spi_boot: true                  # u-boot in the SPI NOR + /boot on the NVMe → SD card can be removed (armbian-config "boot from SPI/MTD")
 
 # ---- Kernel (see kernel/README.md, `make kernel`) ----------------------
 # Armbian's stock vendor kernel for the Orange Pi 4 Pro has no dm-crypt/iSCSI/CIFS → Longhorn and the
@@ -39,6 +40,7 @@ base_packages:
   - ca-certificates
   - apt-transport-https
   - python3-apt
+  - python3-debian     # deb822_repository (Tailscale apt source)
   - nfs-common
   - open-iscsi        # Longhorn (iscsiadm on the host)
   - jq
@@ -63,9 +65,12 @@ hardening_ssh_pubkeys:
 hardening_disable_root_ssh: true        # root can't SSH at all; use admin user + sudo
 hardening_lock_root_password: false     # true also blocks root on the serial console
 hardening_ssh_allow_tcp_forwarding: true  # needed for `kubectl port-forward`-style tunnels over SSH; Tailscale makes this optional
-# Networks allowed to reach ssh / ingress / API. Default: the /24 of each node's LAN IP.
+# Networks allowed to reach ssh / ingress / API. Deliberately NOT the whole LAN (/22): other devices on the
+# network get nothing. List the admin hosts you run Ansible/kubectl from explicitly (Tailscale is the other path).
 hardening_lan_cidrs:
-  - "{{ ansible_host.split('.')[0:3] | join('.') }}.0/24"
+  - "{{ ansible_host.split('.')[0:3] | join('.') }}.0/24"   # the nodes' own subnet
+  - 192.168.68.60/32                                        # rpi5-1 (control host, DNS)
+  - 192.168.68.11/32                                        # laptop — give it a DHCP reservation or update this
 # Extra nftables input rules, e.g. "tcp dport 30080 accept"
 hardening_extra_nft_input_rules: []
 hardening_blacklist_modules: [dccp, sctp, rds, tipc, cramfs, freevxfs, jffs2, hfs, hfsplus, udf]   # add usb-storage if you never use USB disks

@@ -1,5 +1,5 @@
 # longhorn/longhorn values — replicated, encrypted block storage across the three Pis.
-# Secrets (longhorn-crypto, longhorn-backup-cifs) are created by Tofu.
+# Secrets (longhorn-crypto, longhorn-backup-s3) are created by Tofu.
 
 preUpgradeChecker:
   jobEnabled: false            # required when installing via ArgoCD (the hook Job breaks the sync)
@@ -9,8 +9,10 @@ persistence:
   defaultClassReplicaCount: 2
 
 defaultBackupStore:
-  backupTarget: cifs://u656965-sub1.your-storagebox.de/backup/opi-k8s/longhorn    # <- change: //<user>.your-storagebox.de/backup is the SMB share
-  backupTargetCredentialSecret: longhorn-backup-cifs
+  # S3-compatible bucket (Backblaze B2). Format: s3://<bucket>@<region>/<path>/ ; endpoint + keys come from the
+  # longhorn-backup-s3 Secret (Tofu). Not the Storage Box: it only does SFTP/SMB and our ISP blocks SMB (445).
+  backupTarget: s3://mico-lab@eu-central-003/opi-k8s/longhorn/
+  backupTargetCredentialSecret: longhorn-backup-s3
   pollInterval: 300
 
 defaultSettings:
@@ -20,8 +22,9 @@ defaultSettings:
   nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
   replicaAutoBalance: best-effort
   replicaSoftAntiAffinity: false          # replicas must live on different nodes
-  storageMinimalAvailablePercentage: 15
+  storageMinimalAvailablePercentage: 25
   storageOverProvisioningPercentage: 100
+  storageReservedPercentageForDefaultDisk: 200
   guaranteedInstanceManagerCPU: 6         # % of node CPU reserved per node; default 12 is a lot on an SBC
   autoSalvage: true
   autoDeletePodWhenVolumeDetachedUnexpectedly: true

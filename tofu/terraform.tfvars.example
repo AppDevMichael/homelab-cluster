@@ -13,5 +13,8 @@ git_revision = "main"
 
 # ---- Backups ----
 # backup_key comes from the environment: TF_VAR_backup_key=$(scripts/backup-key.sh)  (the Makefile does this)
-storagebox_user     = "u123456"
-storagebox_password = "..."      # Longhorn's SMB backup target needs the password; restic on the nodes uses an SSH key
+# Longhorn volume backups → S3-compatible bucket (B2 recommended: versioning on, lifecycle "keep prior versions 30 days").
+# Bucket, region and path go in gitops/longhorn/values.yaml (backupTarget); the endpoint + a bucket-scoped key pair here.
+longhorn_s3_endpoint   = "https://s3.eu-central-003.backblazeb2.com"
+longhorn_s3_access_key = "003..."
+longhorn_s3_secret_key = "K003..."

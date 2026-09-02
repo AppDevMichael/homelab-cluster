@@ -1,0 +1,12 @@
+---
+# Convert nodes to "u-boot in SPI NOR, /boot on NVMe" (roles/nvme/tasks/spi.yml), one at a time.
+#   cd ansible && ansible-playbook spi-boot.yml [-l opi-2]
+# Afterwards: power off, remove the SD card, power on.
+- name: Boot from SPI, system on NVMe
+  hosts: k3s_cluster
+  serial: 1
+  tasks:
+    - name: Apply the SPI/NVMe boot layout
+      ansible.builtin.include_role:
+        name: nvme
+        tasks_from: spi.yml

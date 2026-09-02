@@ -4,7 +4,9 @@
 - name: First boot (fresh Armbian → configured, on static IP, root on NVMe)
   hosts: k3s_cluster
   vars:
-    ansible_user: root
+    # fresh board (firstboot_ip set) → root + default password; otherwise whatever the inventory says (root on the
+    # very first run, `ops` after hardening has disabled root SSH — see README)
+    ansible_user: "{{ 'root' if firstboot_ip is defined else (hostvars[inventory_hostname].ansible_user | default('root')) }}"
     ansible_host: "{{ firstboot_ip | default(hostvars[inventory_hostname].ansible_host) }}"
     ansible_password: "{{ lookup('env', 'ARMBIAN_ROOT_PASSWORD') | default('1234', true) }}"
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
@@ -21,9 +23,12 @@
     - hardening
     - updates
 
+# From here on root SSH is off (hardening restarted sshd at the end of the previous play): connect as the admin user.
 - name: Bootstrap first k3s server (cluster-init)
   hosts: k3s_init
   serial: 1
+  vars:
+    ansible_user: "{{ hardening_admin_user }}"
   roles:
     - role: k3s
       vars:
@@ -32,6 +37,8 @@
 - name: Join remaining k3s servers
   hosts: k3s_servers
   serial: 1
+  vars:
+    ansible_user: "{{ hardening_admin_user }}"
   roles:
     - role: k3s
       vars:
@@ -39,11 +46,15 @@
 
 - name: Off-site backups (restic → Storage Box)
   hosts: k3s_cluster
+  vars:
+    ansible_user: "{{ hardening_admin_user }}"
   roles:
     - backup
 
 - name: Fetch kubeconfig
   hosts: k3s_init
+  vars:
+    ansible_user: "{{ hardening_admin_user }}"
   tasks:
     - name: Read kubeconfig from init node
       ansible.builtin.slurp:
@@ -57,6 +68,19 @@
         mode: "0600"
       delegate_to: localhost
       become: false
+      vars:
+        ansible_become: false   # inventory sets ansible_become: true; a var outranks the become keyword
+
+    - name: Tailscale IP of the init node (fact from the tailscale role, or ask the node — e.g. on a partial run)
+      ansible.builtin.command: tailscale ip -4
+      register: kubeconfig_ts_ip
+      changed_when: false
+      when: tailscale_ip is not defined
+
+    - name: Use it
+      ansible.builtin.set_fact:
+        tailscale_ip: "{{ kubeconfig_ts_ip.stdout | trim }}"
+      when: tailscale_ip is not defined
 
     - name: Write a second kubeconfig that goes over Tailscale
       ansible.builtin.copy:
@@ -65,6 +89,8 @@
         mode: "0600"
       delegate_to: localhost
       become: false
+      vars:
+        ansible_become: false   # inventory sets ansible_become: true; a var outranks the become keyword
 
     - name: Show node status
       ansible.builtin.command: kubectl get nodes -o wide

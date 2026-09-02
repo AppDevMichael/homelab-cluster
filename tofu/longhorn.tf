@@ -1,4 +1,4 @@
-# Longhorn namespace + the two secrets it needs. Longhorn itself is deployed by ArgoCD (gitops/longhorn).
+# Longhorn namespace + the two secrets it needs (LUKS key, S3 backup credentials). Longhorn itself is deployed by ArgoCD (gitops/longhorn).
 
 resource "kubernetes_namespace_v1" "longhorn" {
   metadata {
@@ -25,14 +25,16 @@ resource "kubernetes_secret_v1" "longhorn_crypto" {
   }
 }
 
-# Credentials for the SMB backup target on the Storage Box.
-resource "kubernetes_secret_v1" "longhorn_backup_cifs" {
+# Credentials for the S3 backup target (bucket/region/path are in gitops/longhorn/values.yaml).
+# Key names are what Longhorn expects for an s3:// backupTarget.
+resource "kubernetes_secret_v1" "longhorn_backup_s3" {
   metadata {
-    name      = "longhorn-backup-cifs"
+    name      = "longhorn-backup-s3"
     namespace = kubernetes_namespace_v1.longhorn.metadata[0].name
   }
   data = {
-    CIFS_USERNAME = var.storagebox_user
-    CIFS_PASSWORD = var.storagebox_password
+    AWS_ACCESS_KEY_ID     = var.longhorn_s3_access_key
+    AWS_SECRET_ACCESS_KEY = var.longhorn_s3_secret_key
+    AWS_ENDPOINTS         = var.longhorn_s3_endpoint
   }
 }

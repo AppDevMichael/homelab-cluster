@@ -1,0 +1,99 @@
+---
+# "Boot from SPI/MTD flash, system on this disk" — the same layout armbian-config's armbian-install produces:
+# u-boot in the SPI NOR, /boot + root on the NVMe, the SD card becomes unnecessary (one less thing to fail).
+# Idempotent, and converts a board migrated with the older "boot from SD" layout (/boot bind-mounted from
+# /media/sd). The SPI is only rewritten when it doesn't already hold the installed u-boot package's blobs, so
+# a u-boot package upgrade gets flashed on the next run.
+#
+# Boot ROM order on the A733 is SD → SPI: with a bootable SD inserted the SD's u-boot still wins (it boots
+# the same NVMe root, so nothing breaks). Power off, pull the card, power on to actually boot from SPI.
+
+- name: Install mtd tools
+  ansible.builtin.apt:
+    name: mtd-utils
+    state: present
+
+- name: Board ships an SPI writer + blobs, and an MTD device exists
+  ansible.builtin.shell: |
+    source /usr/lib/u-boot/platform_install.sh
+    [[ "$(type -t write_uboot_platform_mtd)" == function ]] || { echo "no write_uboot_platform_mtd for this board" >&2; exit 1; }
+    test -f "$DIR/boot0_spinor.fex" && test -f "$DIR/boot_package.fex" && test -e /dev/mtd0
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Does the SPI already hold this u-boot package's bootloader?
+  ansible.builtin.shell: |
+    set -o pipefail
+    source /usr/lib/u-boot/platform_install.sh
+    spl_size=$(stat -c%s "$DIR/boot0_spinor.fex"); pkg_size=$(stat -c%s "$DIR/boot_package.fex")
+    tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
+    # read whole blocks into a file first: no `dd | head` pipe, so head's early exit can't trip pipefail
+    dd if=/dev/mtd0ro of="$tmp" bs=4096 skip=64 count=$(( (pkg_size + 4095) / 4096 )) status=none
+    a=$(head -c "$spl_size" /dev/mtd0ro | md5sum | cut -c1-32); b=$(md5sum "$DIR/boot0_spinor.fex" | cut -c1-32)
+    c=$(head -c "$pkg_size" "$tmp" | md5sum | cut -c1-32);      d=$(md5sum "$DIR/boot_package.fex" | cut -c1-32)
+    [[ "$a" == "$b" && "$c" == "$d" ]]
+  args:
+    executable: /bin/bash
+  register: nvme_spi_current
+  changed_when: false
+  failed_when: false
+
+- name: "Write u-boot to the SPI NOR (board's write_uboot_platform_mtd: flash_erase + mtd_debug)"
+  ansible.builtin.shell: |
+    source /usr/lib/u-boot/platform_install.sh
+    write_uboot_platform_mtd "$DIR" /dev/mtd0
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: nvme_spi_current.rc != 0
+
+- name: Is /boot still the SD bind mount?
+  ansible.builtin.command: findmnt -n -o SOURCE /boot
+  register: nvme_boot_mnt
+  changed_when: false
+  failed_when: false
+
+- name: Move /boot onto the NVMe root
+  when: nvme_boot_mnt.rc == 0
+  block:
+    - name: Unmount the /boot bind (the NVMe's own, stale /boot directory is underneath)
+      ansible.posix.mount:
+        path: /boot
+        state: unmounted
+
+    - name: Copy the SD's /boot onto the NVMe
+      ansible.builtin.command: rsync -a --delete /media/sd/boot/ /boot/   # noqa: command-instead-of-module (node-local copy; synchronize is for control→node)
+      changed_when: true
+
+    - name: Drop the SD and the bind from fstab   # NOT mount state=absent: that would delete /boot itself
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: "{{ item }}"
+        state: absent
+      loop:
+        - '^/media/sd/boot\s'
+        - '\s/media/sd\s'
+
+    - name: Unmount the SD
+      ansible.posix.mount:
+        path: /media/sd
+        state: unmounted
+
+    - name: Reload systemd mount units
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+- name: /boot on the NVMe holds the running kernel
+  ansible.builtin.stat:
+    path: "/boot/vmlinuz-{{ ansible_facts['kernel'] }}"
+  register: nvme_boot_kernel
+  failed_when: not nvme_boot_kernel.stat.exists
+
+- name: Check armbianEnv.txt points at the NVMe root by UUID
+  ansible.builtin.command: grep -E '^rootdev=UUID=' /boot/armbianEnv.txt
+  changed_when: false
+
+- name: How to finish
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: u-boot in SPI, /boot on NVMe. Power off, remove the SD card, power on. Keep the card as a rescue disk."

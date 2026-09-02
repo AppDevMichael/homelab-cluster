@@ -2,7 +2,7 @@
 # Moves the OS onto the NVMe. Layout afterwards (same as armbian-install's "boot from SD, system on NVMe"):
 #   SD card : u-boot + /boot (kernel, armbianEnv.txt)  — also keeps a bootable fallback copy of the OS
 #   NVMe    : root filesystem (everything else, incl. /var/lib/rancher and /var/lib/longhorn)
-# Full NVMe boot (u-boot in SPI flash) is board-specific and left manual — see README.
+# Second stage (nvme_spi_boot, tasks/spi.yml): u-boot into the SPI NOR + /boot onto the NVMe → no SD needed.
 
 - name: Where is / right now?
   ansible.builtin.command: findmnt -no SOURCE /
@@ -133,3 +133,8 @@
 - name: Root filesystem location
   ansible.builtin.debug:
     msg: "{{ inventory_hostname }}: / is on {{ root_src.stdout }}{{ ' (already NVMe, nothing to do)' if nvme_done else ' → migrated to NVMe' }}"
+
+# Optional second stage: u-boot into the SPI NOR and /boot onto the NVMe, so the SD card can be removed.
+- name: Boot from SPI NOR, /boot on the NVMe (no SD card needed)
+  ansible.builtin.include_tasks: spi.yml
+  when: nvme_spi_boot

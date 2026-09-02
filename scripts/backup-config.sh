@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 : "${STORAGEBOX_USER:?}" "${STORAGEBOX_HOST:?}"
 
 export RESTIC_PASSWORD="$BACKUP_KEY"
-export RESTIC_REPOSITORY="sftp:${STORAGEBOX_USER}@${STORAGEBOX_HOST}:/opi-k8s/restic"
-SSH_CMD="ssh -p 23 -i ansible/secrets/storagebox_ed25519 -o StrictHostKeyChecking=accept-new ${STORAGEBOX_USER}@${STORAGEBOX_HOST} -s sftp"
+export RESTIC_REPOSITORY="sftp:${STORAGEBOX_USER}@${STORAGEBOX_HOST}:opi-k8s/restic"   # relative: sub-accounts are chrooted
+SSH_CMD="ssh -p 23 -i ansible/secrets/storagebox_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new ${STORAGEBOX_USER}@${STORAGEBOX_HOST} -s sftp"
 
 restic -o "sftp.command=$SSH_CMD" snapshots >/dev/null 2>&1 || restic -o "sftp.command=$SSH_CMD" init
 case "${1:-backup}" in

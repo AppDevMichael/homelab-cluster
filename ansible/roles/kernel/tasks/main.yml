@@ -10,6 +10,8 @@
     patterns: "linux-*-{{ kernel_flavour }}_*.deb"
   delegate_to: localhost
   become: false
+  vars:
+    ansible_become: false   # inventory sets ansible_become: true; a var outranks the become keyword
   run_once: true
   register: kernel_debs_found
 
@@ -30,10 +32,16 @@
        + (kernel_debs_found.files | map(attribute='path') | map('basename') | select('match', '^linux-headers-') | list)
        + (kernel_debs_found.files | map(attribute='path') | map('basename') | select('match', '^linux-image-') | list) }}
 
-- name: /boot must be mounted (kernel postinst writes there; with root on NVMe it is the SD bind-mount)
+- name: /boot must be mounted (kernel postinst writes there; with root on NVMe and SD boot it is the SD bind-mount)
   ansible.builtin.command: findmnt -n /boot
   changed_when: false
-  when: nvme_enabled
+  when: nvme_enabled and not nvme_spi_boot
+
+- name: Staging directory
+  ansible.builtin.file:
+    path: "{{ kernel_stage_dir }}"
+    state: directory
+    mode: "0755"
 
 - name: Stage the packages on the node
   ansible.builtin.copy:
@@ -68,8 +76,12 @@
     mode: "0644"
     content: |
       Stock Armbian kernel saved by ansible/roles/kernel before installing the custom build.
-      Recovery (board will not boot the custom kernel): put the SD in a PC and copy everything in this
-      directory back one level into /boot, overwriting Image, uInitrd, vmlinuz-*, initrd.img-*, dtb-*.
+      Recovery (board will not boot the custom kernel):
+        - SPI-boot layout (no SD, /boot on the NVMe): insert the board's original SD card (its own OS boots,
+          rootdev points at the NVMe) and copy everything in this directory back one level into /boot;
+          or mount the NVMe in a PC and do the same.
+        - SD-boot layout (/boot bind-mounted from the SD): put the SD in a PC and copy the files back into /boot.
+      Overwrite Image, uInitrd, vmlinuz-*, initrd.img-*, dtb-*.
   when: kernel_installed.stdout != kernel_wanted.stdout
 
 - name: Install the custom kernel packages
@@ -88,8 +100,8 @@
 
 - name: Does the running kernel already provide dm-crypt + iSCSI?
   ansible.builtin.shell: |
-    set -o pipefail
-    zcat /proc/config.gz | grep -qE '^CONFIG_DM_CRYPT=[my]' && zcat /proc/config.gz | grep -qE '^CONFIG_ISCSI_TCP=[my]'
+    cfg=$(zcat /proc/config.gz)
+    grep -qE '^CONFIG_DM_CRYPT=[my]' <<< "$cfg" && grep -qE '^CONFIG_ISCSI_TCP=[my]' <<< "$cfg"
   args:
     executable: /bin/bash
   register: kernel_running_ok
@@ -103,10 +115,9 @@
   when: kernel_install is changed or kernel_running_ok.rc != 0
 
 - name: Verify the storage modules load
-  community.general.modprobe:
-    name: "{{ item }}"
-    state: present
+  ansible.builtin.command: modprobe {{ item }}
   loop: [dm_crypt, iscsi_tcp, cifs]
+  changed_when: false
 
 - name: Runtime power trim (Wi-Fi/BT/video modules + services)
   ansible.builtin.include_tasks: lowpower.yml

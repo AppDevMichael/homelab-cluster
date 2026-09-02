@@ -23,13 +23,14 @@ gitops/
   system-upgrade/ k3s auto-upgrade Plan (patch releases of the pinned minor)
   kured/          safe rolling reboots after OS updates
 scripts/          backup-key (SSH-agent-derived passphrase), config backup, volume restore
+docs/             bootstrap-walkthrough.md: play-by-play of make bootstrap / make argocd + real-hardware gotchas
 mise.toml         pinned CLI tool versions (`mise install`)
 renovate.json     PRs when k3s / charts / mise tools have new releases
 ```
 
 ## Pinned versions (all GA/stable releases, verified 2026-09-01)
 
-CLI tools (`mise.toml`, exact pins, stable only): OpenTofu 1.12.6 · Ansible 13.x (core 2.20) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 · jq 1.8.2 · kustomize 5.x (lint only). `mise install` once; Renovate bumps them (`ignoreUnstable` is on, so never an rc/beta).
+CLI tools (`mise.toml`, exact pins, stable only): OpenTofu 1.12.6 · Ansible 14.3.1 (core 2.21.3, community package with bundled collections) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 · kustomize 5.x (lint only). `mise install` once; Renovate bumps them (`ignoreUnstable` is on, so never an rc/beta).
 
 | Component | Version | Where to bump |
 |---|---|---|
@@ -48,7 +49,7 @@ Enable Renovate on the repo and it will open PRs for these automatically.
 ## Prerequisites
 
 - [mise](https://mise.jdx.dev) — `make deps` installs every CLI tool at the pinned version, plus `sshpass` from your OS package manager (used once to install a key on the Storage Box)
-- Three boards flashed with a **stock Armbian** image (Debian trixie minimal, `vendor` kernel — the only branch Armbian offers for this board), NVMe fitted, booted from SD. Nothing else — no wizard, no user, no password.
+- Three boards flashed with a **stock Armbian** image (a `trunk` nightly, Debian trixie minimal, `vendor` kernel: Armbian has no stable release and no other kernel branch for this board), NVMe fitted, booted from SD. Nothing else: no wizard, no user, no password.
 - `sshpass` on your machine (the first login uses Armbian's default root password)
 - **Docker** on your machine — `make kernel` builds the custom kernel inside a container (~15 GB of cache, 30–60 min)
 - A git remote ArgoCD can reach (GitHub/GitLab/Gitea — public or private)
@@ -60,12 +61,12 @@ Enable Renovate on the repo and it will open PRs for these automatically.
 
 ```bash
 make deps
-cp .env.example .env && vim .env          # K3S_TOKEN, TAILSCALE_AUTHKEY, STORAGEBOX_* — mise loads it automatically
+cp .env.example .env && vim .env          # K3S_TOKEN, TAILSCALE_AUTHKEY, STORAGEBOX_*, BACKUP_SSH_PUBKEY (mise loads it automatically)
 make key                                  # derived from your SSH agent; SAVE THIS in your password manager
 make kernel                               # custom vendor kernel → kernel/debs/ (see *Custom kernel* below)
 
 vim ansible/inventory/hosts.yml           # node IPs + the user you SSH in as TODAY (root is fine for the first run)
-vim ansible/group_vars/all.yml            # hardening_ssh_pubkeys (defaults to ~/.ssh/id_ed25519.pub), LAN CIDR if not a /24
+vim ansible/group_vars/all.yml            # hardening_ssh_pubkeys (defaults to ~/.ssh/id_ed25519_cluster.pub), hardening_lan_cidrs if your control machine is not in the nodes' /24
 
 # LAN-specific bits in git:
 vim gitops/monitoring/values.yaml         # node IPs (once, YAML anchor) + grafana host
@@ -77,6 +78,15 @@ vim tofu/terraform.tfvars                 # git_repo_url (this repo), optional d
 
 git add -A && git commit -m "configure" && git push
 ```
+
+## Booting without the SD card (u-boot in SPI flash)
+
+The Orange Pi 4 Pro has a 16 MB SPI NOR. With `nvme_spi_boot: true` (the default) the nvme role's second stage writes
+the vendor u-boot there (the same `write_uboot_platform_mtd` routine armbian-config uses), moves `/boot` from the SD
+onto the NVMe root, and removes the SD from `fstab`. The boot ROM tries the SD before the SPI, so a bootable card left
+in still wins (harmlessly, it boots the same NVMe root); **power off, pull the card, power on** to boot from SPI.
+Keep the card as a rescue disk. `make spi-boot LIMIT=opi-2` applies it to one node; `make bootstrap` applies it to all.
+The SPI is only rewritten when it does not already contain the installed u-boot package's blobs.
 
 ## Custom kernel (why `make kernel` exists)
 
@@ -105,9 +115,11 @@ uncordoned). Armbian ships no stable release for this board; everything is a
 Flash Armbian, plug in, power on. Find each board's DHCP address on your router and put it in `hosts.yml` as `firstboot_ip`, with the static IP you want it to keep as `ansible_host`. Then:
 
 ```bash
-make bootstrap                  # ~20 min: firstboot → NVMe migration → prep → Tailscale → hardening → k3s
+make bootstrap                  # ~20 min: firstboot → NVMe migration → custom kernel → prep → Tailscale → hardening → updates → k3s → restic backups
 make nodes                      # 3× Ready  control-plane,etcd
 ```
+
+Every play and role, what it changes, how to verify it, the reboot points, and the hardware gotchas we hit: [docs/bootstrap-walkthrough.md](docs/bootstrap-walkthrough.md).
 
 What the first play does to each board, in order:
 
@@ -122,7 +134,7 @@ Full NVMe boot (no SD at all) needs u-boot written to the board's SPI flash — 
 
 You get two kubeconfigs: `kubeconfig` (LAN) and `kubeconfig-tailscale` (works from anywhere).
 
-**After the first run, root SSH is off.** Set `ansible_user: ops` (the `hardening_admin_user`) in the inventory before running the playbook again. Tailscale SSH is also enabled as a fallback path.
+**After the first run, root SSH is off.** The k3s/backup plays already connect as `ops` (the `hardening_admin_user`) within the same run; set `ansible_user: ops` in the inventory and remove `firstboot_ip` before running the playbook again so the first two plays do too. Tailscale SSH is also enabled as a fallback path.
 
 ## 3. ArgoCD
 
@@ -160,7 +172,7 @@ Volumes are **LUKS-encrypted** on disk (`dm-crypt`, key in the `longhorn-crypto`
 
 ## Backups
 
-Everything on the Storage Box is encrypted; **one passphrase** unlocks it all, and it's derived from your SSH key rather than stored anywhere:
+Everything off-site is encrypted; **one passphrase** unlocks it all, and it's derived from your SSH key rather than stored anywhere. Two destinations: the Hetzner Storage Box (restic, SFTP port 23) and an S3 bucket (Longhorn volume backups; the Storage Box has no S3 and residential ISPs block its SMB port):
 
 ```
 scripts/backup-key.sh  →  ssh-keygen -Y sign (Ed25519 = deterministic)  →  sha256  →  BACKUP_KEY
@@ -170,9 +182,9 @@ The private key never leaves your agent (1Password, Secretive, plain ssh-agent a
 
 | What | Tool | Where on the box | Schedule | Retention |
 |---|---|---|---|---|
-| Longhorn volumes (Grafana, Prometheus, Alertmanager, anything on the default class) | Longhorn backup → SMB | `/opi-k8s/longhorn` | daily 01:30 + weekly | 14 daily / 8 weekly |
-| etcd snapshots + `/etc/rancher/k3s` (token, config) | restic → SFTP, from every server | `/opi-k8s/restic` | daily 03:10/03:20/03:30 | 7d / 4w / 3m, integrity check weekly |
-| Tofu tfvars + lock file, kubeconfigs, Storage Box key, `.env` | restic → SFTP, from your laptop | `/opi-k8s/restic` | on every `make argocd`, or `make backup-config` | last 10 |
+| Longhorn volumes (Grafana, Prometheus, Alertmanager, anything on the default class) | Longhorn backup → S3 (Backblaze B2, versioned bucket) | `s3://<bucket>@<region>/opi-k8s/longhorn/` | daily 01:30 + weekly | 14 daily / 8 weekly |
+| etcd snapshots + `/etc/rancher/k3s` (token, config) | restic → SFTP, from every server | `opi-k8s/restic` (relative to the SFTP login dir) | daily 03:10/03:20/03:30 | 7d / 4w / 3m, integrity check weekly |
+| Tofu tfvars + lock file, kubeconfigs, Storage Box key, `.env` | restic → SFTP, from your laptop | `opi-k8s/restic` (relative to the SFTP login dir) | on every `make argocd`, or `make backup-config` | last 10 |
 
 Longhorn's backups are block-level incremental of the *encrypted* device, so the Storage Box only ever sees LUKS ciphertext. restic encrypts with the same `BACKUP_KEY`.
 
@@ -257,7 +269,7 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 **Kubernetes (k3s config)**
 
 - Secrets encrypted at rest, `protect-kernel-defaults`, anonymous API auth off.
-- **Pod Security Admission**: `baseline` enforced cluster-wide (blocks privileged/hostPath/hostNetwork pods by default), `restricted` warned/audited. `kube-system` is exempt; `monitoring` and `tailscale` are explicitly labeled `privileged` by Tofu because node-exporter and the Tailscale proxies legitimately need it. New namespaces you create get `baseline` — if a chart needs more, label the namespace, don't loosen the default.
+- **Pod Security Admission**: `baseline` enforced cluster-wide (blocks privileged/hostPath/hostNetwork pods by default), `restricted` warned/audited. `kube-system` is exempt; `monitoring`, `tailscale` and `longhorn-system` are explicitly labeled `privileged` by Tofu (node-exporter, the Tailscale proxies and Longhorn's managers legitimately need it), and `kured` and `system-upgrade` by their own manifests. New namespaces you create get `baseline` — if a chart needs more, label the namespace, don't loosen the default.
 - API **audit log** (`/var/lib/rancher/k3s/server/logs/audit.log`, 7 days × 50 MB): metadata for reads, full request for writes, secret bodies never logged.
 - etcd snapshots every 6 h, 12 retained.
 
@@ -274,5 +286,5 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 - **Tailscale is for access**, not the pod network — flannel stays on the LAN. For multi-site, k3s can run flannel over Tailscale (`vpn-auth` in `config.yaml.j2`).
 - **Tailscale SSH** is on; add an `ssh` rule to your tailnet ACLs or it silently falls back to normal SSH.
 - **Storage** is Longhorn (2 replicas, encrypted). `local-path` still exists for throwaway data. Longhorn's own UI is only exposed on the tailnet (it has no auth).
-- **SMB password** — Longhorn's CIFS backup target can't use SSH keys, so the Storage Box password lives in a Secret (Tofu) and in your tfvars. Consider a Storage Box *sub-account* limited to `/opi-k8s` with its own password.
+- **S3 keys** — Longhorn's backup target is an S3 bucket (B2); a bucket-scoped key pair lives in a Secret (Tofu) and in your tfvars. Consider a Storage Box *sub-account* limited to `/opi-k8s` with its own password.
 - **Memory** is the constraint on SBCs — limits are deliberately small. If Prometheus OOMs, lower `retentionSize` or raise its limit.

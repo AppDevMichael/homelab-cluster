@@ -3,17 +3,16 @@
 # Rule: only tools something in this repo actually calls (Makefile, scripts/). Nothing "just in case".
 [tools]
 opentofu = "1.12.6"
-     # community package = ansible-core 2.20 + bundled collections (posix, general, crypto).
-                                     # stable-only prefix; Ansible 13 gets a minor every ~4 weeks. 14 (core 2.21) lands ~Nov 2026.
+# ansible community package = ansible-core + bundled collections (posix, general, crypto). The `ansible` and
+# `ansible-playbook` executables live in the ansible-core dependency, so uv must be told to expose them.
+"pipx:ansible" = { version = "14.3.1", uvx_args = "--with-executables-from ansible-core" }
 "pipx:ansible-lint" = "latest"       # linter only, never touches the cluster
 kubectl = "1.36.4"                   # = the Kubernetes version inside k3s v1.36.4+k3s1
 helm = "4.2.4"
 kustomize = "5"                      # stable-only prefix match; used for `make lint` only
 restic = "0.19.1"
 jq = "1.8.2"                         # used by scripts/restore-longhorn-volumes.sh
-uv = "latest"
-pipx = "latest"
-ansible = { version = "14.3.1", pipx_args = "--include-deps", uvx = false }
+uv = "latest"                        # backend for the pipx:* tools (settings.pipx.uvx)
 
 [env]
 KUBECONFIG = "{{config_root}}/kubeconfig"

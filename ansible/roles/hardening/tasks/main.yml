@@ -145,6 +145,12 @@
   loop: "{{ hardening_disable_services }}"
   failed_when: false
 
+- name: journald drop-in directory (absent on minimal images)
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    mode: "0755"
+
 - name: Cap journald size (protects the SD card, keeps logs useful)
   ansible.builtin.copy:
     dest: /etc/systemd/journald.conf.d/size.conf

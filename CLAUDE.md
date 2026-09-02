@@ -1,8 +1,8 @@
 # CLAUDE.md — project context for Claude Code
 
 This repo is a complete, GitOps-driven Kubernetes lab for **three Orange Pi 4 Pro boards (arm64, Armbian)**.
-It was designed in a chat session and **has not yet been executed against real hardware**. Treat every
-file as "carefully written, unvalidated" until the owner confirms otherwise.
+The Ansible half (`make bootstrap`) has been **executed and verified on the real boards (2026-09-02)**; the OpenTofu +
+ArgoCD half (`make argocd`, `gitops/`) is still "carefully written, unvalidated" until the owner confirms otherwise.
 
 ## The owner's hard requirements (do not regress these)
 
@@ -48,13 +48,16 @@ scripts/
   prepare-sd.sh           optional Linux-only: seed SSH key onto a fresh SD (avoids root/1234 login)
 ansible/
   site.yml                plays in order: firstboot(+nvme) → kernel,common,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
+                          plays after hardening connect as hardening_admin_user (root SSH is off by then); firstboot forces root only when firstboot_ip is set
   upgrade-os.yml          manual rolling apt full-upgrade with drain/reboot/uncordon
   kernel.yml              rolling custom-kernel install (`make kernel-install [LIMIT=opi-2]`), drains only if k3s present
+  spi-boot.yml            `make spi-boot [LIMIT=opi-2]`: apply roles/nvme/tasks/spi.yml one node at a time (then remove SD cards)
   inventory/hosts.yml     ansible_host = target static IP, firstboot_ip = first-boot DHCP IP (remove after)
   group_vars/all.yml      ALL tunables: versions, CIDRs, static IP, NVMe, hardening, updates, backups
   roles/
     firstboot   kill Armbian wizard, ssh key, random root pw (→ ansible/secrets/), locale, netplan static IP
-    nvme        partition/format/rsync root to NVMe; /boot stays on SD (bind mount); SD OS kept as fallback
+    nvme        partition/format/rsync root to NVMe; /boot on SD (bind mount) as stage 1; spi.yml (nvme_spi_boot, default on):
+                u-boot → SPI NOR (write_uboot_platform_mtd, only if blobs differ), /boot → NVMe, SD dropped from fstab → pull the card
     kernel      stage kernel/debs/*.deb, apt install + hold, reboot (throttle 1) only if running kernel lacks dm-crypt,
                 verify dm_crypt/iscsi_tcp/cifs load; lowpower.yml blacklists wifi/BT/video modules + masks services
     common      swap off (zram), cgroup boot args, sysctls, modules (dm_crypt, iscsi_tcp), packages
@@ -67,14 +70,14 @@ tofu/
   backend.tf    kubernetes backend + OpenTofu state encryption (pbkdf2 from var.backup_key, enforced)
   argocd.tf     helm_release argo-cd (lifecycle ignore_changes: ArgoCD self-manages afterwards) + root app
   secrets.tf    ns monitoring (+grafana-admin), ns tailscale (+operator-oauth) — PSA privileged labels
-  longhorn.tf   ns longhorn-system (+longhorn-crypto LUKS key, +longhorn-backup-cifs)
+  longhorn.tf   ns longhorn-system (+longhorn-crypto LUKS key, +longhorn-backup-s3: endpoint + bucket-scoped key pair)
   variables.tf  git_repo_url, backup_key, storagebox_*, tailscale_oauth_*, grafana_admin_password
 gitops/
   bootstrap/    Helm chart of Applications. values.yaml: repo url/revision + toggles (tailscale, monitoring)
                 templates/: root, argocd(-10), longhorn(-3), tailscale(-5), monitoring(0), kured(5), system-upgrade(5)
                 _helpers.tpl: shared syncPolicy (automated prune+selfHeal, ServerSideApply, retry)
   argocd/       values (insecure behind ingress, dex/notifications/appset off, small resources)
-  longhorn/     values (defaultBackupStore cifs://…, nodeDownPodDeletionPolicy, preUpgradeChecker off) + manifests/
+  longhorn/     values (defaultBackupStore s3://<bucket>@<region>/opi-k8s/longhorn/ — B2; nodeDownPodDeletionPolicy, preUpgradeChecker off) + manifests/
                 (StorageClasses: longhorn-encrypted=default with LUKS secret refs, longhorn; RecurringJobs)
   monitoring/   kube-prometheus-stack values (existingSecret grafana-admin, longhorn-encrypted PVCs,
                 k3s control-plane endpoints = node IPs) + manifests/sbc-alerts.yaml (temp/disk/mem/longhorn)
@@ -88,7 +91,7 @@ gitops/
 
 k3s v1.36.4+k3s1 · argo-cd chart 10.4.2 · kube-prometheus-stack 88.3.0 · longhorn 1.12.0 ·
 tailscale-operator 1.102.3 · kured chart 6.0.0 · system-upgrade-controller v0.18.0 ·
-OpenTofu 1.12.6 · Ansible 13.x community package (= core 2.20 + collections) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 ·
+OpenTofu 1.12.6 · Ansible 14.3.1 community package (= core 2.21.3 + collections) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 ·
 hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · hashicorp/kubernetes ~>2.38
 
 ## Key design decisions (and why)
@@ -105,8 +108,10 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 - Backup key: `ssh-keygen -Y sign` of a fixed message with an Ed25519 key in the agent → deterministic →
   sha256. Used for restic (nodes + laptop), Longhorn LUKS, Tofu state encryption. Owner must also store it in
   a password manager. Changing the message/namespace in `scripts/backup-key.sh` changes the key — don't.
-- Longhorn backups of encrypted volumes are encrypted; so nothing on the Storage Box is plaintext.
-  SMB (Longhorn) needs the Storage Box *password*; SFTP (restic) uses a generated key in ansible/secrets/.
+- Longhorn backups of encrypted volumes are encrypted; nothing off-site is plaintext. Two destinations: restic → Storage Box
+  over SFTP:23 (generated key in ansible/secrets/, repo path relative `opi-k8s/restic`); Longhorn → an S3 bucket (B2) because
+  the Storage Box only offers SFTP/SMB and the owner's ISP blocks SMB. Object Lock rejected (breaks Longhorn pruning);
+  use bucket versioning + "keep prior versions 30 days" and bucket-scoped keys instead.
 - DR order: restore laptop secrets from restic → `make bootstrap` → set monitoring.enabled=false in
   gitops/bootstrap/values.yaml → `make argocd` → wait for backupvolumes → `make restore-volumes` → re-enable.
 - ArgoCD manages itself; Tofu's helm_release has `ignore_changes = [version, values]`. Bump ArgoCD in git,
@@ -131,13 +136,24 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
   source + Armbian commit, config only. Owner also wants HDMI/audio/Wi-Fi/BT/camera/codec/NPU off (power) → headless ext.
   Vendor kernel string stays `6.6.98-vendor-sun60iw2`; tell custom vs stock apart via /proc/config.gz (DM_CRYPT).
 - `roles/firstboot` + `roles/nvme` **work**: boards boot with root on `/dev/nvme0n1p1`, SD at `/media/sd`.
+- 2026-09-02: all three boards run the custom kernel `26.08.0-k8s.1` (packages held), verified via `make kernel-install`.
+- 2026-09-02 evening: `make bootstrap` completed through k3s (3 servers Ready, v1.36.4+k3s1) as `ops`; SD cards removed,
+  u-boot in SPI NOR. Firewall allows only the nodes' /24 + admin hosts 192.168.68.60 (Pi) and .11 (laptop), not the LAN.
+  Backup play done: restic repo initialised, first snapshot taken, timers set; both kubeconfigs fetched. `make bootstrap` is
+  fully verified on hardware. Storage Box facts: restricted shell (only file cmds, no `true`, no `&&`), sub-account SFTP is
+  chrooted (login dir /home, `/` unreadable) → restic paths are RELATIVE (`opi-k8s/restic`); an agent with many keys trips
+  MaxAuthTries → always `-o IdentitiesOnly=yes`; env files sourced by bash must quote values with spaces.
+  Owner runs Ansible from a Raspberry Pi on the boards' LAN (`~/homelab/cluster`, same tree synced with the laptop),
+  not from the laptop; the laptop cannot always reach 192.168.69.x directly.
 
 ## Known untested / fragile spots (highest risk first)
 
-1. `roles/nvme`: rsync-to-NVMe + bind-mounting SD `/boot`; `rootdev=` edit in armbianEnv.txt. Verify on one board.
+1. `roles/nvme` both stages verified 2026-09-02: all three boards boot from SPI with NO SD card (root + /boot on NVMe).
+   The removed SD cards are the rescue disks (their own OS boots, rootdev already points at the NVMe).
 2. `roles/firstboot`: relies on Armbian allowing non-interactive root SSH with default password `1234`.
    Some builds force a password change → use `scripts/prepare-sd.sh`. Netplan interface name comes from facts.
-3. Longhorn CIFS target to Hetzner (SMB3 required; may need `vers=3.0` mount option — check longhorn-manager logs).
+3. Longhorn S3 backup target (B2) — untested: bucket name/region in values, endpoint + keys in tfvars. (CIFS to the Storage Box is
+   impossible from home: the ISP drops port 445 at its edge, verified with TCP traceroute 2026-09-02.)
 4. `scripts/restore-longhorn-volumes.sh`: mimics Longhorn UI "create PV/PVC"; field names from BackupVolume
    status (`KubernetesStatus`, `lastBackupName`) need confirming against 1.12. `DRY_RUN=1` first.
 5. kube-prometheus-stack 88.x / longhorn 1.12 / kured 6 values keys were written from memory of chart schemas;
