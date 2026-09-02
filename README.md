@@ -38,6 +38,7 @@ CLI tools (`mise.toml`, exact pins, stable only): OpenTofu 1.12.6 · Ansible 13.
 | argo-cd chart | 10.4.2 | `gitops/bootstrap/templates/argocd.yaml` (+ `tofu/variables.tf` for first install) |
 | kube-prometheus-stack chart | 88.3.0 | `gitops/bootstrap/templates/monitoring.yaml` |
 | tailscale-operator chart | 1.102.3 | `gitops/bootstrap/templates/tailscale.yaml` |
+| kernel (Orange Pi 4 Pro) | 6.6.98 vendor, custom build `26.08.0-k8s.1` | `kernel/userpatches/VERSION`, armbian/build commit in `scripts/build-kernel.sh` |
 | system-upgrade-controller | v0.18.0 | `gitops/system-upgrade/kustomization.yaml` |
 | kured chart | 6.0.0 | `gitops/bootstrap/templates/kured.yaml` |
 | hashicorp/helm provider | ~> 3.2 | `tofu/versions.tf` |
@@ -47,8 +48,9 @@ Enable Renovate on the repo and it will open PRs for these automatically.
 ## Prerequisites
 
 - [mise](https://mise.jdx.dev) — `make deps` installs every CLI tool at the pinned version, plus `sshpass` from your OS package manager (used once to install a key on the Storage Box)
-- Three boards flashed with a **stock Armbian** image (Debian- or Ubuntu-based, minimal is fine), NVMe fitted, booted from SD. Nothing else — no wizard, no user, no password.
+- Three boards flashed with a **stock Armbian** image (Debian trixie minimal, `vendor` kernel — the only branch Armbian offers for this board), NVMe fitted, booted from SD. Nothing else — no wizard, no user, no password.
 - `sshpass` on your machine (the first login uses Armbian's default root password)
+- **Docker** on your machine — `make kernel` builds the custom kernel inside a container (~15 GB of cache, 30–60 min)
 - A git remote ArgoCD can reach (GitHub/GitLab/Gitea — public or private)
 - Tailscale account
 - A **Hetzner Storage Box** with SSH and Samba enabled (Storage Box → Settings)
@@ -60,6 +62,7 @@ Enable Renovate on the repo and it will open PRs for these automatically.
 make deps
 cp .env.example .env && vim .env          # K3S_TOKEN, TAILSCALE_AUTHKEY, STORAGEBOX_* — mise loads it automatically
 make key                                  # derived from your SSH agent; SAVE THIS in your password manager
+make kernel                               # custom vendor kernel → kernel/debs/ (see *Custom kernel* below)
 
 vim ansible/inventory/hosts.yml           # node IPs + the user you SSH in as TODAY (root is fine for the first run)
 vim ansible/group_vars/all.yml            # hardening_ssh_pubkeys (defaults to ~/.ssh/id_ed25519.pub), LAN CIDR if not a /24
@@ -74,6 +77,28 @@ vim tofu/terraform.tfvars                 # git_repo_url (this repo), optional d
 
 git add -A && git commit -m "configure" && git push
 ```
+
+## Custom kernel (why `make kernel` exists)
+
+Armbian's `vendor` kernel for the Orange Pi 4 Pro (Allwinner A733, Linux 6.6) is built **without device-mapper,
+dm-crypt, iSCSI and CIFS**. Longhorn needs iSCSI to attach volumes, the default `longhorn-encrypted` class is
+LUKS, and Longhorn's backup target is SMB — so the stock kernel cannot run this repo's storage layer at all.
+
+`make kernel` rebuilds the *same* kernel (same source branch, same armbian/build commit the boards were imaged
+from) with those options enabled, plus a **headless/low-power** trim: no HDMI/DRM, framebuffer, audio, Wi-Fi,
+Bluetooth, camera, video codec, NPU or touchscreen drivers. Nodes are reachable over SSH and the debug UART only.
+`KERNEL_HEADLESS=0 make kernel` keeps the display and radio drivers if you ever need a screen.
+
+The build runs in Docker and drops `linux-{image,dtb,headers}-vendor-sun60iw2_*.deb` into `kernel/debs/`
+(git-ignored; included in `make backup-config`). `roles/kernel` installs them on every node, `apt-mark hold`s
+them so Armbian's repo cannot replace them, and reboots a node only if its running kernel still lacks dm-crypt.
+It also blacklists the Wi-Fi/BT/video modules and masks `bluetooth`, `aic8800-bluetooth` and `wpa_supplicant`.
+
+**Canary + upgrades:** `make kernel-install LIMIT=opi-2` installs on one board and reboots it; check it comes back
+before `make bootstrap`. To upgrade later: bump `kernel/userpatches/VERSION`, optionally move the armbian/build
+commit in `scripts/build-kernel.sh`, `make kernel`, then `make kernel-install` (one node at a time, drained and
+uncordoned). Armbian ships no stable release for this board; everything is a
+`trunk` nightly, which is why the build is pinned to a commit rather than a tag.
 
 ## 2. Nodes — from a blank SD card
 

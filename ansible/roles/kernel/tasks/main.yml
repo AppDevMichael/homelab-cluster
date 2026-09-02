@@ -1,0 +1,113 @@
+---
+# Installs the custom vendor kernel produced by `make kernel` (kernel/debs/) and pins it.
+# Why: Armbian's stock sun60iw2 vendor kernel has no device-mapper/dm-crypt/iSCSI/CIFS (Longhorn + LUKS).
+# Idempotent: compares the staged package version with what dpkg has; reboots only when the RUNNING
+# kernel still lacks dm-crypt/iSCSI (the version string 6.6.98-vendor-sun60iw2 is the same for both).
+
+- name: Locate the built kernel packages on the control machine
+  ansible.builtin.find:
+    paths: "{{ kernel_debs_dir }}"
+    patterns: "linux-*-{{ kernel_flavour }}_*.deb"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  register: kernel_debs_found
+
+- name: Refuse to continue without linux-image + linux-dtb debs
+  ansible.builtin.assert:
+    that:
+      - kernel_debs_found.files | map(attribute='path') | map('basename') | select('match', '^linux-image-') | list | length == 1
+      - kernel_debs_found.files | map(attribute='path') | map('basename') | select('match', '^linux-dtb-') | list | length == 1
+    fail_msg: >-
+      No linux-image/linux-dtb {{ kernel_flavour }} debs in {{ kernel_debs_dir }}.
+      Run `make kernel` first, or set kernel_custom_enabled: false (Longhorn/LUKS will not work).
+  run_once: true
+
+- name: Package file names, install order dtb → headers → image
+  ansible.builtin.set_fact:
+    kernel_deb_names: >-
+      {{ (kernel_debs_found.files | map(attribute='path') | map('basename') | select('match', '^linux-dtb-') | list)
+       + (kernel_debs_found.files | map(attribute='path') | map('basename') | select('match', '^linux-headers-') | list)
+       + (kernel_debs_found.files | map(attribute='path') | map('basename') | select('match', '^linux-image-') | list) }}
+
+- name: /boot must be mounted (kernel postinst writes there; with root on NVMe it is the SD bind-mount)
+  ansible.builtin.command: findmnt -n /boot
+  changed_when: false
+  when: nvme_enabled
+
+- name: Stage the packages on the node
+  ansible.builtin.copy:
+    src: "{{ kernel_debs_dir }}/{{ item }}"
+    dest: "{{ kernel_stage_dir }}/{{ item }}"
+    mode: "0644"
+  loop: "{{ kernel_deb_names }}"
+
+- name: Version of the staged image package
+  ansible.builtin.command: dpkg-deb -f {{ kernel_stage_dir }}/{{ kernel_deb_names | last }} Version
+  register: kernel_wanted
+  changed_when: false
+
+- name: Version of the installed image package
+  ansible.builtin.command: dpkg-query -W -f='${Version}' linux-image-{{ kernel_flavour }}
+  register: kernel_installed
+  changed_when: false
+  failed_when: false
+
+- name: Keep a copy of the stock kernel on the SD before the first replacement (/boot is shared with the NVMe root)
+  ansible.builtin.shell: |
+    mkdir -p /boot/stock-kernel-backup
+    cp -a /boot/Image /boot/uInitrd /boot/vmlinuz-* /boot/initrd.img-* /boot/System.map-* /boot/config-* /boot/stock-kernel-backup/ 2>/dev/null || true
+    cp -a /boot/dtb-* /boot/stock-kernel-backup/ 2>/dev/null || true
+  args:
+    creates: /boot/stock-kernel-backup/Image
+  when: kernel_installed.stdout != kernel_wanted.stdout
+
+- name: Recovery note next to the stock kernel copy
+  ansible.builtin.copy:
+    dest: /boot/stock-kernel-backup/README.txt
+    mode: "0644"
+    content: |
+      Stock Armbian kernel saved by ansible/roles/kernel before installing the custom build.
+      Recovery (board will not boot the custom kernel): put the SD in a PC and copy everything in this
+      directory back one level into /boot, overwriting Image, uInitrd, vmlinuz-*, initrd.img-*, dtb-*.
+  when: kernel_installed.stdout != kernel_wanted.stdout
+
+- name: Install the custom kernel packages
+  ansible.builtin.apt:
+    deb: "{{ kernel_stage_dir }}/{{ item }}"
+    allow_downgrade: true
+  loop: "{{ kernel_deb_names }}"
+  when: kernel_installed.stdout != kernel_wanted.stdout
+  register: kernel_install
+
+- name: Hold the kernel packages so the Armbian repo cannot replace them
+  ansible.builtin.dpkg_selections:
+    name: "{{ item | regex_replace('_.*$', '') }}"
+    selection: hold
+  loop: "{{ kernel_deb_names }}"
+
+- name: Does the running kernel already provide dm-crypt + iSCSI?
+  ansible.builtin.shell: |
+    set -o pipefail
+    zcat /proc/config.gz | grep -qE '^CONFIG_DM_CRYPT=[my]' && zcat /proc/config.gz | grep -qE '^CONFIG_ISCSI_TCP=[my]'
+  args:
+    executable: /bin/bash
+  register: kernel_running_ok
+  changed_when: false
+  failed_when: false
+
+- name: Reboot into the new kernel (one node at a time)
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  throttle: 1
+  when: kernel_install is changed or kernel_running_ok.rc != 0
+
+- name: Verify the storage modules load
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: [dm_crypt, iscsi_tcp, cifs]
+
+- name: Runtime power trim (Wi-Fi/BT/video modules + services)
+  ansible.builtin.include_tasks: lowpower.yml
+  when: kernel_headless

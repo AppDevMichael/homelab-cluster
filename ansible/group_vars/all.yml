@@ -24,7 +24,13 @@ static_ip_dns: ["192.168.68.60", "1.1.1.1"]
 
 nvme_enabled: true                   # move root to NVMe on first run (boot stays on SD)
 nvme_device: /dev/nvme0n1
-nvme_wipe: false                     # true = destroy existing partitions on the NVMe
+nvme_wipe: true                     # true = destroy existing partitions on the NVMe
+
+# ---- Kernel (see kernel/README.md, `make kernel`) ----------------------
+# Armbian's stock vendor kernel for the Orange Pi 4 Pro has no dm-crypt/iSCSI/CIFS → Longhorn and the
+# LUKS StorageClass cannot work. roles/kernel installs the rebuilt debs from kernel/debs/ and holds them.
+kernel_custom_enabled: true
+kernel_headless: true                # no HDMI/audio/Wi-Fi/BT/camera drivers (lower idle power; SSH/serial only)
 
 # ---- OS ----------------------------------------------------------------
 timezone: "Etc/UTC"
@@ -34,7 +40,7 @@ base_packages:
   - apt-transport-https
   - python3-apt
   - nfs-common
-  - open-iscsi        # handy if you add Longhorn later
+  - open-iscsi        # Longhorn (iscsiadm on the host)
   - jq
   - htop
   - chrony

@@ -1,7 +1,7 @@
 ---
 - name: Add Tailscale apt signing key
   ansible.builtin.get_url:
-    url: "https://pkgs.tailscale.com/stable/{{ ansible_distribution | lower }}/{{ ansible_distribution_release }}.noarmor.gpg"
+    url: "https://pkgs.tailscale.com/stable/{{ ansible_facts['distribution'] | lower }}/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
     dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
     mode: "0644"
 
@@ -9,8 +9,8 @@
   ansible.builtin.deb822_repository:
     name: tailscale
     types: deb
-    uris: "https://pkgs.tailscale.com/stable/{{ ansible_distribution | lower }}"
-    suites: "{{ ansible_distribution_release }}"
+    uris: "https://pkgs.tailscale.com/stable/{{ ansible_facts['distribution'] | lower }}"
+    suites: "{{ ansible_facts['distribution_release'] }}"
     components: main
     signed_by: /usr/share/keyrings/tailscale-archive-keyring.gpg
     state: present

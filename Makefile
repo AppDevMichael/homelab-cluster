@@ -5,7 +5,8 @@ export TF_VAR_backup_key := $(BACKUP_KEY)
 export TF_VAR_storagebox_user := $(STORAGEBOX_USER)
 
 .PHONY: help deps lint bootstrap argocd all nodes apps key argocd-password grafana-password \
-        backup-config backup-restore-config restore-volumes os-upgrade destroy state-migrate state-show
+        backup-config backup-restore-config restore-volumes os-upgrade destroy state-migrate state-show \
+        kernel kernel-install kernel-clean
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s$$'\t'
@@ -22,7 +23,16 @@ lint:              ## static checks
 key:               ## print the derived backup key (store it in your password manager too!)
 	@scripts/backup-key.sh
 
-bootstrap:         ## nodes: prep, Tailscale, hardening, updates, k3s HA, restic backups
+kernel:            ## build the custom vendor kernel (dm-crypt/iSCSI/CIFS, headless) in Docker → kernel/debs/
+	scripts/build-kernel.sh
+
+kernel-install:    ## install/upgrade kernel/debs/ on the nodes one at a time (drains if k3s is up); LIMIT=opi-2 for a canary
+	cd ansible && ansible-playbook kernel.yml $(if $(LIMIT),-l $(LIMIT),)
+
+kernel-clean:      ## delete the armbian/build checkout and its caches (~15 GB)
+	rm -rf kernel/build
+
+bootstrap:         ## nodes: kernel, prep, Tailscale, hardening, updates, k3s HA, restic backups
 	@test -n "$(BACKUP_KEY)" || (echo "BACKUP_KEY empty — is your SSH key in the agent?"; exit 1)
 	cd ansible && ansible-playbook site.yml
 

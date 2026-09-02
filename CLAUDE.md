@@ -6,7 +6,8 @@ file as "carefully written, unvalidated" until the owner confirms otherwise.
 
 ## The owner's hard requirements (do not regress these)
 
-- **Stable releases only.** No rc / beta / nightly / pre-release of anything. Verify a version is GA on its
+- **Stable releases only.** No rc / beta / nightly / pre-release of anything. (Exception the owner accepted: Armbian
+  has no stable build for the Orange Pi 4 Pro, so the OS/kernel is a pinned `trunk` nightly — see Hardware facts.) Verify a version is GA on its
   actual release page before pinning it; a search-result snippet is not enough (we got OpenTofu wrong once
   that way — 1.13 was pre-release text, 1.12.6 is the stable pin).
 - **Exact pins** for tools (`mise.toml`) and charts (`gitops/bootstrap/templates/*.yaml`). Renovate bumps them.
@@ -36,20 +37,26 @@ mise.toml                 exact CLI tool pins        .env.example → .env (git-
 Makefile                  the entry points (make help)
 CLAUDE.md / README.md     this file / user docs (README has the full runbooks — keep it in sync)
 renovate.json             version bumps: argocd manager for charts, regex managers for k3s/SUC/tofu, mise manager
+kernel/                   custom Armbian vendor kernel (see kernel/README.md): userpatches/extensions/{k8s-storage,headless-lowpower}.sh,
+                          userpatches/VERSION (26.08.0-k8s.N — bump per rebuild), debs/ (output, git-ignored), build/ (armbian/build, ignored)
 scripts/
+  build-kernel.sh         `make kernel`: armbian/build @ pinned commit 8b778f3d8 (boards' image commit), Docker, → kernel/debs/
   backup-key.sh           BACKUP_KEY = sha256(ssh-keygen -Y sign of a fixed message)  — Ed25519/RSA only
                           signs with $BACKUP_SSH_PUBKEY (set in .env) or ~/.ssh/id_ed25519.pub; pick once, never change
   backup-config.sh        restic (SFTP:23) of tfvars/lockfile/kubeconfigs/.env/storagebox key  ← laptop side
   restore-longhorn-volumes.sh   DR: recreate Volume + PV + PVC from latest Longhorn backups
   prepare-sd.sh           optional Linux-only: seed SSH key onto a fresh SD (avoids root/1234 login)
 ansible/
-  site.yml                plays in order: firstboot(+nvme) → common,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
+  site.yml                plays in order: firstboot(+nvme) → kernel,common,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
   upgrade-os.yml          manual rolling apt full-upgrade with drain/reboot/uncordon
+  kernel.yml              rolling custom-kernel install (`make kernel-install [LIMIT=opi-2]`), drains only if k3s present
   inventory/hosts.yml     ansible_host = target static IP, firstboot_ip = first-boot DHCP IP (remove after)
   group_vars/all.yml      ALL tunables: versions, CIDRs, static IP, NVMe, hardening, updates, backups
   roles/
     firstboot   kill Armbian wizard, ssh key, random root pw (→ ansible/secrets/), locale, netplan static IP
     nvme        partition/format/rsync root to NVMe; /boot stays on SD (bind mount); SD OS kept as fallback
+    kernel      stage kernel/debs/*.deb, apt install + hold, reboot (throttle 1) only if running kernel lacks dm-crypt,
+                verify dm_crypt/iscsi_tcp/cifs load; lowpower.yml blacklists wifi/BT/video modules + masks services
     common      swap off (zram), cgroup boot args, sysctls, modules (dm_crypt, iscsi_tcp), packages
     tailscale   apt repo, `tailscale up --ssh`, auto-update, records tailscale_ip/tailscale_dns facts
     hardening   ops user + keys, sshd drop-in, nftables (default-drop, k3s-aware), sysctls, fail2ban, journald
@@ -108,11 +115,22 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 ## Things to know before running anything
 
 - `make help` lists targets. Order: `make deps` → edit .env/hosts.yml/group_vars → `make key` (save it) →
-  `make bootstrap` → `make argocd`. After first bootstrap: set `ansible_user: ops` and delete `firstboot_ip`.
+  `make kernel` (Docker, ~1 h) → `make bootstrap` → `make argocd`. After first bootstrap: set `ansible_user: ops` and delete `firstboot_ip`.
 - `make lint` = ansible-lint, tofu fmt/validate, helm lint bootstrap chart, kustomize build system-upgrade.
 - Owner's laptop location is Ireland (locale en_IE.UTF-8 default; timezone left UTC — ask before changing).
 - Never expose the Longhorn UI on the LAN (no auth). Tailnet ingress only.
-- `sshpass` is a host prerequisite (first-boot password login + Storage Box key install).
+- `sshpass` is a host prerequisite (first-boot password login + Storage Box key install). Docker for `make kernel`.
+- Owner wants the boards on Debian trixie with the vendor kernel branch (no distro/branch switching).
+
+## Hardware facts (verified on real boards 2026-09-01)
+
+- Orange Pi 4 Pro = Allwinner A733 (family `sun60iw2`), 8 cores, **12 GB RAM**, NVMe present. Armbian ships it
+  only as a `.csc` community board → **nightly images only** (`26.11.0-trunk.x`, Debian 13). No stable OS exists.
+- Vendor kernel `6.6.98-vendor-sun60iw2` (upstream config `linux-sun60iw2-vendor.config`) has **no device-mapper
+  (`CONFIG_MD`), no dm-crypt, no iSCSI, no XTS, no CIFS**. Decision: **custom kernel** (`make kernel`, `kernel/`), same
+  source + Armbian commit, config only. Owner also wants HDMI/audio/Wi-Fi/BT/camera/codec/NPU off (power) → headless ext.
+  Vendor kernel string stays `6.6.98-vendor-sun60iw2`; tell custom vs stock apart via /proc/config.gz (DM_CRYPT).
+- `roles/firstboot` + `roles/nvme` **work**: boards boot with root on `/dev/nvme0n1p1`, SD at `/media/sd`.
 
 ## Known untested / fragile spots (highest risk first)
 

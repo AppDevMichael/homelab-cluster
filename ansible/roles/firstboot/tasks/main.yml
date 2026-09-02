@@ -48,8 +48,8 @@
 # ---- Static IP (only if the node isn't already on its inventory IP) ----
 - name: Current primary interface / address
   ansible.builtin.set_fact:
-    fb_iface: "{{ ansible_default_ipv4.interface }}"
-    fb_current_ip: "{{ ansible_default_ipv4.address }}"
+    fb_iface: "{{ ansible_facts['default_ipv4']['interface'] }}"
+    fb_current_ip: "{{ ansible_facts['default_ipv4']['address'] }}"
 
 - name: Configure static IP with netplan
   when:

@@ -1,0 +1,24 @@
+---
+# Tunables live in group_vars/all.yml; these are the fallbacks.
+kernel_custom_enabled: true
+kernel_debs_dir: "{{ playbook_dir }}/../kernel/debs"
+kernel_flavour: vendor-sun60iw2            # Armbian package suffix: linux-image-<flavour>
+kernel_stage_dir: /var/cache/opi-k8s-kernel
+kernel_headless: true
+# Runtime trim (works on the stock kernel too; a no-op once the headless kernel is running)
+kernel_headless_blacklist_modules:
+  - aic8800_fdrv        # Wi-Fi
+  - aic8800_bsp
+  - aic8800_btlpm       # Bluetooth low-power / firmware
+  - hci_uart
+  - bnep
+  - rfcomm
+  - goodix_ts           # touchscreen
+  - sunxi_ve            # video codec
+  - vipcore             # NPU
+  - deinterlace
+  - sunxi_g2d
+kernel_headless_mask_services:
+  - bluetooth.service
+  - aic8800-bluetooth.service
+  - wpa_supplicant.service

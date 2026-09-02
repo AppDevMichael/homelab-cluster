@@ -15,7 +15,7 @@ case "${1:-backup}" in
   backup)
     restic -o "sftp.command=$SSH_CMD" backup --tag laptop-config \
       tofu/terraform.tfvars tofu/.terraform.lock.hcl \
-      kubeconfig kubeconfig-tailscale ansible/secrets .env 2>/dev/null || true
+      kubeconfig kubeconfig-tailscale ansible/secrets .env kernel/debs 2>/dev/null || true
     restic -o "sftp.command=$SSH_CMD" forget --tag laptop-config --keep-last 10 --prune ;;
   restore)
     restic -o "sftp.command=$SSH_CMD" restore latest --tag laptop-config --target . ;;

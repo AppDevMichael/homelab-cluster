@@ -10,3 +10,7 @@ terraform.tfvars
 ansible/secrets/*
 !ansible/secrets/.keep
 ansible/secrets/root_password_*
+kernel/build/
+kernel/debs/
+kernel/build.log
+.gitignore

@@ -1,0 +1,22 @@
+---
+# Belt and braces for the headless kernel: on the stock kernel these drivers are modules and this
+# keeps them out; on the custom kernel they don't exist and this is a no-op.
+- name: Blacklist Wi-Fi / Bluetooth / video modules
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/opi-headless.conf
+    mode: "0644"
+    content: |
+      # hardware the cluster nodes don't use (power) — see kernel/userpatches/extensions/headless-lowpower.sh
+      {% for m in kernel_headless_blacklist_modules %}
+      blacklist {{ m }}
+      install {{ m }} /bin/true
+      {% endfor %}
+
+- name: Mask Wi-Fi / Bluetooth services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    masked: true
+    enabled: false
+    state: stopped
+  loop: "{{ kernel_headless_mask_services }}"
+  failed_when: false          # unit may not exist on every image
