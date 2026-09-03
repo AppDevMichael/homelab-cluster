@@ -134,7 +134,7 @@ Full NVMe boot (no SD at all) needs u-boot written to the board's SPI flash — 
 
 You get two kubeconfigs: `kubeconfig` (LAN) and `kubeconfig-tailscale` (works from anywhere).
 
-**After the first run, root SSH is off.** The k3s/backup plays already connect as `ops` (the `hardening_admin_user`) within the same run; set `ansible_user: ops` in the inventory and remove `firstboot_ip` before running the playbook again so the first two plays do too. Tailscale SSH is also enabled as a fallback path.
+**After the first run, root SSH is off.** The hardening role switches Ansible to `ops` (the `hardening_admin_user`) for the rest of the run and every later run; the only inventory edit afterwards is removing `firstboot_ip` (a board with it set is contacted as root with the default password, i.e. treated as fresh). Tailscale SSH is also enabled as a fallback path.
 
 ## 3. ArgoCD
 

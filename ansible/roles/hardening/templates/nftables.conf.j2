@@ -9,7 +9,7 @@ delete table inet host_fw
 table inet host_fw {
   set lan {
     type ipv4_addr; flags interval
-    elements = { {{ hardening_lan_cidrs | join(', ') }} }
+    elements = { {{ (hardening_lan_cidrs + hardening_admin_hosts) | join(', ') }} }
   }
   set nodes {
     type ipv4_addr

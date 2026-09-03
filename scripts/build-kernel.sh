@@ -64,5 +64,7 @@ cp "$tmp"/boot/config-* "$KDIR/debs/linux-sun60iw2-vendor.config"; rm -rf "$tmp"
 echo ">> done:"; ls -la "$KDIR/debs/"
 if [[ -f "$KDIR/debs/linux-sun60iw2-vendor.config" ]]; then
   echo ">> sanity (should all be =m or =y):"
-  grep -E '^CONFIG_(BLK_DEV_DM|DM_CRYPT|CRYPTO_XTS|ISCSI_TCP|CIFS)=' "$KDIR/debs/linux-sun60iw2-vendor.config" || echo "!! storage options missing — inspect the config" >&2
+  for opt in BLK_DEV_DM DM_CRYPT CRYPTO_XTS ISCSI_TCP CIFS; do
+    grep -E "^CONFIG_${opt}=[my]" "$KDIR/debs/linux-sun60iw2-vendor.config" || { echo "!! CONFIG_${opt} missing — not shipping this kernel" >&2; rm -f "$KDIR/debs/"*.deb; exit 1; }
+  done
 fi

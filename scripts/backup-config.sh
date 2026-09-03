@@ -9,17 +9,18 @@ cd "$(dirname "$0")/.."
 export RESTIC_PASSWORD="$BACKUP_KEY"
 export RESTIC_REPOSITORY="sftp:${STORAGEBOX_USER}@${STORAGEBOX_HOST}:opi-k8s/restic"   # relative: sub-accounts are chrooted
 SSH_CMD="ssh -p 23 -i ansible/secrets/storagebox_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new ${STORAGEBOX_USER}@${STORAGEBOX_HOST} -s sftp"
+r() { restic -o "sftp.command=$SSH_CMD" "$@"; }
 
-restic -o "sftp.command=$SSH_CMD" snapshots >/dev/null 2>&1 || restic -o "sftp.command=$SSH_CMD" init
+r snapshots >/dev/null 2>&1 || r init
 case "${1:-backup}" in
   backup)
-    restic -o "sftp.command=$SSH_CMD" backup --tag laptop-config \
+    r backup --tag laptop-config \
       tofu/terraform.tfvars tofu/.terraform.lock.hcl \
       kubeconfig kubeconfig-tailscale ansible/secrets .env kernel/debs 2>/dev/null || true
-    restic -o "sftp.command=$SSH_CMD" forget --tag laptop-config --keep-last 10 --prune ;;
+    r forget --tag laptop-config --keep-last 10 --prune ;;
   restore)
-    restic -o "sftp.command=$SSH_CMD" restore latest --tag laptop-config --target . ;;
+    r restore latest --tag laptop-config --target . ;;
   snapshots)
-    restic -o "sftp.command=$SSH_CMD" snapshots ;;
+    r snapshots ;;
   *) echo "usage: $0 [backup|restore|snapshots]"; exit 1 ;;
 esac

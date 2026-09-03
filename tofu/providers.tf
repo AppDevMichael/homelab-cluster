@@ -1,9 +1,6 @@
-provider "kubernetes" {
-  config_path = var.kubeconfig_path
-}
+# Both providers read KUBE_CONFIG_PATH (exported by mise; kubeconfig-tailscale by default).
+provider "kubernetes" {}
 
 provider "helm" {
-  kubernetes = {
-    config_path = var.kubeconfig_path
-  }
+  kubernetes = {}
 }

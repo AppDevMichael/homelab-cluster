@@ -24,15 +24,9 @@
 
 - name: Does the SPI already hold this u-boot package's bootloader?
   ansible.builtin.shell: |
-    set -o pipefail
     source /usr/lib/u-boot/platform_install.sh
-    spl_size=$(stat -c%s "$DIR/boot0_spinor.fex"); pkg_size=$(stat -c%s "$DIR/boot_package.fex")
-    tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
-    # read whole blocks into a file first: no `dd | head` pipe, so head's early exit can't trip pipefail
-    dd if=/dev/mtd0ro of="$tmp" bs=4096 skip=64 count=$(( (pkg_size + 4095) / 4096 )) status=none
-    a=$(head -c "$spl_size" /dev/mtd0ro | md5sum | cut -c1-32); b=$(md5sum "$DIR/boot0_spinor.fex" | cut -c1-32)
-    c=$(head -c "$pkg_size" "$tmp" | md5sum | cut -c1-32);      d=$(md5sum "$DIR/boot_package.fex" | cut -c1-32)
-    [[ "$a" == "$b" && "$c" == "$d" ]]
+    cmp -s -n "$(stat -c%s "$DIR/boot0_spinor.fex")" /dev/mtd0ro "$DIR/boot0_spinor.fex" &&
+    cmp -s -i 262144:0 -n "$(stat -c%s "$DIR/boot_package.fex")" /dev/mtd0ro "$DIR/boot_package.fex"
   args:
     executable: /bin/bash
   register: nvme_spi_current
@@ -66,14 +60,11 @@
       ansible.builtin.command: rsync -a --delete /media/sd/boot/ /boot/   # noqa: command-instead-of-module (node-local copy; synchronize is for control→node)
       changed_when: true
 
-    - name: Drop the SD and the bind from fstab   # NOT mount state=absent: that would delete /boot itself
-      ansible.builtin.lineinfile:
-        path: /etc/fstab
-        regexp: "{{ item }}"
-        state: absent
-      loop:
-        - '^/media/sd/boot\s'
-        - '\s/media/sd\s'
+    - name: Drop the bind and the SD from fstab (absent_from_fstab leaves the mountpoints alone)
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: absent_from_fstab
+      loop: [/boot, /media/sd]
 
     - name: Unmount the SD
       ansible.posix.mount:

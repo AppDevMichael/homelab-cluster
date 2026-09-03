@@ -20,7 +20,8 @@ firstboot_locale: "en_IE.UTF-8"
 static_ip_enabled: true              # false = you use DHCP reservations; ansible_host must then already be reachable
 static_ip_prefix: 22
 static_ip_gateway: "192.168.68.1"
-static_ip_dns: ["192.168.68.60", "1.1.1.1"]
+control_host_ip: "192.168.68.60"    # rpi5-1: runs Ansible on the LAN, also the DNS server
+static_ip_dns: ["{{ control_host_ip }}", "1.1.1.1"]
 
 nvme_enabled: true                   # move root to NVMe on first run (boot stays on SD)
 nvme_device: /dev/nvme0n1
@@ -69,8 +70,10 @@ hardening_ssh_allow_tcp_forwarding: true  # needed for `kubectl port-forward`-st
 # network get nothing. List the admin hosts you run Ansible/kubectl from explicitly (Tailscale is the other path).
 hardening_lan_cidrs:
   - "{{ ansible_host.split('.')[0:3] | join('.') }}.0/24"   # the nodes' own subnet
-  - 192.168.68.60/32                                        # rpi5-1 (control host, DNS)
-  - 192.168.68.12/32                                        # laptop (DHCP; update here if the lease moves)
+# Admin hosts (Ansible / kubectl over the LAN). Fixed addresses only — a moving DHCP lease locks you out.
+hardening_admin_hosts:
+  - "{{ control_host_ip }}/32"
+  - 192.168.68.12/32                                        # laptop
 # Extra nftables input rules, e.g. "tcp dport 30080 accept"
 hardening_extra_nft_input_rules: []
 hardening_blacklist_modules: [dccp, sctp, rds, tipc, cramfs, freevxfs, jffs2, hfs, hfsplus, udf]   # add usb-storage if you never use USB disks

@@ -1,4 +1,3 @@
-kubeconfig_path = "../kubeconfig-tailscale"
 
 # Push this repo somewhere ArgoCD can reach (GitHub/GitLab/Gitea...) and put the URL here.
 git_repo_url = "https://github.com/YOU/opi-k8s.git"

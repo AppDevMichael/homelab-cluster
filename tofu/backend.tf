@@ -13,7 +13,7 @@ terraform {
   backend "kubernetes" {
     secret_suffix = "opi-k8s" # Secret name: tfstate-default-opi-k8s
     namespace     = "kube-system"
-    config_path   = "../kubeconfig-tailscale" # backend blocks cannot use variables
+    # kubeconfig comes from KUBE_CONFIG_PATH (set by mise); backend blocks cannot use variables
   }
 
   encryption {

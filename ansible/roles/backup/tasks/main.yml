@@ -15,57 +15,45 @@
     comment: "opi-k8s-backup"
   delegate_to: localhost
   become: false
-  vars:
-    ansible_become: false   # inventory sets ansible_become: true; a var outranks the become keyword
   run_once: true
-  register: sb_key
 
 # `ls` not `true`: the Storage Box restricted shell only knows a few file commands
 - name: Does the key already open the Storage Box?
-  ansible.builtin.command: >
-    ssh -i {{ playbook_dir }}/secrets/storagebox_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15
-    -o StrictHostKeyChecking=accept-new -p 23 {{ storagebox_user }}@{{ storagebox_host }} ls
+  ansible.builtin.command: "{{ backup_storagebox_ssh_key }} ls"
   delegate_to: localhost
   become: false
-  vars:
-    ansible_become: false   # inventory sets ansible_become: true; a var outranks the become keyword
   run_once: true
-  register: sb_key_ok
+  register: backup_sb_key_ok
   changed_when: false
   failed_when: false
 
 - name: Install the key on the Storage Box (needs STORAGEBOX_PASSWORD; skipped once the key works)
   ansible.builtin.shell: |
     set -e
-    # PubkeyAuthentication=no - an agent full of keys would exhaust the Storage Box MaxAuthTries before the password is tried
-    # restricted shell on the box: one simple command per ssh call, no chaining
-    for cmd in 'mkdir -p .ssh' 'mkdir -p opi-k8s/restic' 'mkdir -p opi-k8s/longhorn'; do
-      sshpass -e ssh -p 23 -o PubkeyAuthentication=no -o PreferredAuthentications=password -o StrictHostKeyChecking=accept-new \
-        "{{ storagebox_user }}@{{ storagebox_host }}" "$cmd"
-    done
-    sshpass -e ssh -p 23 -o PubkeyAuthentication=no -o PreferredAuthentications=password -o StrictHostKeyChecking=accept-new \
-      "{{ storagebox_user }}@{{ storagebox_host }}" 'cat >> .ssh/authorized_keys' \
-      < "{{ playbook_dir }}/secrets/storagebox_ed25519.pub"
+    # restricted shell on the box: one simple command per ssh call, no chaining.
+    # PubkeyAuthentication=no: an agent full of keys would exhaust the box MaxAuthTries before the password is tried.
+    sb() {
+      sshpass -e ssh -p 23 -o PubkeyAuthentication=no -o PreferredAuthentications=password \
+        -o StrictHostKeyChecking=accept-new "{{ storagebox_user }}@{{ storagebox_host }}" "$@"
+    }
+    sb 'mkdir -p .ssh'
+    sb 'cat >> .ssh/authorized_keys' < "{{ playbook_dir }}/secrets/storagebox_ed25519.pub"
   environment:
     SSHPASS: "{{ storagebox_password }}"
   delegate_to: localhost
   become: false
-  vars:
-    ansible_become: false   # inventory sets ansible_become: true; a var outranks the become keyword
   run_once: true
-  when: sb_key_ok.rc != 0
+  changed_when: true
+  when: backup_sb_key_ok.rc != 0
   no_log: true
 
 - name: Key must open the Storage Box now
-  ansible.builtin.command: >
-    ssh -i {{ playbook_dir }}/secrets/storagebox_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15
-    -o StrictHostKeyChecking=accept-new -p 23 {{ storagebox_user }}@{{ storagebox_host }} ls
+  ansible.builtin.command: "{{ backup_storagebox_ssh_key }} ls"
   delegate_to: localhost
   become: false
-  vars:
-    ansible_become: false
   run_once: true
   changed_when: false
+  when: backup_sb_key_ok.rc != 0
 
 - name: Install restic
   ansible.builtin.apt:

@@ -331,7 +331,7 @@ None of these fire on a healthy re-run.
 
 Every role is written to be idempotent, and the 2026-09-02 log confirms it for plays 1 and 2: 80 to 82 tasks
 `ok`, 14 `changed` (all in the journald, fail2ban, login.defs and `updates` steps that had not run before).
-Before the second run after hardening, set `ansible_user: ops` in `inventory/hosts.yml` and delete the
+Before the second run after hardening, delete the
 `firstboot_ip` lines, otherwise plays 1 and 2 try `root` and fail.
 
 ### State of the 2026-09-02 run
@@ -569,7 +569,7 @@ diagnosed yet; start with fail2ban and the `/24` versus `/22` LAN definition.
 
 | Task | Command | Notes |
 |---|---|---|
-| Re-run bootstrap after hardening | `make bootstrap` | First set `ansible_user: ops` in `ansible/inventory/hosts.yml` and remove every `firstboot_ip`. Plays 3 to 6 already use `ops`; plays 1 and 2 use the inventory user |
+| Re-run bootstrap after hardening | `make bootstrap` | Remove every `firstboot_ip` first. The hardening role switches Ansible to `ops` for the rest of that run and all later runs; a host with `firstboot_ip` is treated as fresh (root, default password) |
 | Full OS upgrade including Armbian packages | `make os-upgrade` | `ansible/upgrade-os.yml`: drain, `apt full-upgrade`, reboot if `/var/run/reboot-required`, uncordon, wait Ready, 60 s pause, next node. The held kernel packages are skipped |
 | New custom kernel | `make kernel` then `make kernel-install LIMIT=opi-2`, then `make kernel-install` | Section 3. Bump `kernel/userpatches/VERSION` first |
 | Save laptop-side secrets | `make backup-config` | Also runs at the end of every `make argocd`. `make backup-restore-config` pulls them back |

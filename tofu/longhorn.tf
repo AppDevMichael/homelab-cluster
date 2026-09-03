@@ -37,4 +37,8 @@ resource "kubernetes_secret_v1" "longhorn_backup_s3" {
     AWS_SECRET_ACCESS_KEY = var.longhorn_s3_secret_key
     AWS_ENDPOINTS         = var.longhorn_s3_endpoint
   }
+
+  lifecycle {
+    ignore_changes = [metadata[0].annotations] # Longhorn stamps longhorn.io/backup-target on it; don't fight over it
+  }
 }

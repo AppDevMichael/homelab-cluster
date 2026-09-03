@@ -145,7 +145,7 @@
   loop: "{{ hardening_disable_services }}"
   failed_when: false
 
-- name: journald drop-in directory (absent on minimal images)
+- name: Journald drop-in directory (absent on minimal images)
   ansible.builtin.file:
     path: /etc/systemd/journald.conf.d
     state: directory
@@ -154,6 +154,7 @@
 - name: Cap journald size (protects the SD card, keeps logs useful)
   ansible.builtin.copy:
     dest: /etc/systemd/journald.conf.d/size.conf
+    mode: "0644"
     content: |
       [Journal]
       SystemMaxUse=200M
@@ -173,7 +174,7 @@
       [DEFAULT]
       backend = systemd
       banaction = nftables-multiport
-      ignoreip = 127.0.0.1/8 100.64.0.0/10 {{ hardening_lan_cidrs | join(' ') }}
+      ignoreip = 127.0.0.1/8 100.64.0.0/10 {{ (hardening_lan_cidrs + hardening_admin_hosts) | join(' ') }}
       bantime  = 1h
       findtime = 10m
       maxretry = 5
@@ -207,3 +208,11 @@
     - /etc/rancher     # may not exist yet, handled by failed_when
     - /boot/armbianEnv.txt
   failed_when: false
+
+# ---------------------------------------------------------------------------
+# 6. From here on connect as the admin user (root SSH is off once the sshd handler fires at the end of the play).
+#    A fact, so every later play and every re-run picks it up without an inventory edit.
+# ---------------------------------------------------------------------------
+- name: Connect as the admin user from now on
+  ansible.builtin.set_fact:
+    ansible_user: "{{ hardening_admin_user }}"

@@ -57,12 +57,11 @@
 - name: Verify the unattended-upgrades config parses and has our origin pattern
   ansible.builtin.shell: |
     set -o pipefail
-    apt-config dump | grep -F 'Unattended-Upgrade::Origins-Pattern::' > /tmp/uu-origins
-    grep -F '{{ updates_security_origin }}' /tmp/uu-origins
+    origins=$(apt-config dump | grep -F 'Unattended-Upgrade::Origins-Pattern::')
+    grep -qF '{{ updates_security_origin }}' <<< "$origins"
     # exactly our entries, nothing inherited from the Armbian 50unattended-upgrades file
-    [[ $(wc -l < /tmp/uu-origins) -eq {{ 2 if updates_include_armbian_repo else 1 }} ]]
+    [[ $(wc -l <<< "$origins") -eq {{ 2 if updates_include_armbian_repo else 1 }} ]]
   args:
     executable: /bin/bash
-  register: uu_dry
+  register: updates_origins_check
   changed_when: false
-  failed_when: uu_dry.rc != 0

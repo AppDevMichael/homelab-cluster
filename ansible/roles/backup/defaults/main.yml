@@ -1,0 +1,6 @@
+---
+# Key-based SSH to the Storage Box from the control machine. IdentitiesOnly: an agent with many keys trips the
+# box MaxAuthTries. Port 23 = Hetzner Storage Box SSH. `ls`, not `true`: the restricted shell knows only file commands.
+backup_storagebox_ssh_key: >-
+  ssh -i {{ playbook_dir }}/secrets/storagebox_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15
+  -o StrictHostKeyChecking=accept-new -p 23 {{ storagebox_user }}@{{ storagebox_host }}

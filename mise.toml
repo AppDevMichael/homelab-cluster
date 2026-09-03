@@ -15,7 +15,8 @@ jq = "1.8.2"                         # used by scripts/restore-longhorn-volumes.
 uv = "latest"                        # backend for the pipx:* tools (settings.pipx.uvx)
 
 [env]
-KUBECONFIG = "{{config_root}}/kubeconfig-tailscale"   # API over the tailnet: works from anywhere, no DHCP/firewall dependency. kubeconfig = LAN copy
+KUBECONFIG = "{{config_root}}/kubeconfig-tailscale"        # API over the tailnet: works from anywhere, no DHCP/firewall dependency. kubeconfig = LAN copy
+KUBE_CONFIG_PATH = "{{config_root}}/kubeconfig-tailscale"  # same file for OpenTofu (backend + providers); override per command to use the LAN copy
 _.file = ".env"            # K3S_TOKEN, TAILSCALE_AUTHKEY, STORAGEBOX_*, BACKUP_SSH_PUBKEY — git-ignored, see .env.example
 
 [settings]

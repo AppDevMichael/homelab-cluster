@@ -1,8 +1,3 @@
-variable "kubeconfig_path" {
-  type    = string
-  default = "../kubeconfig-tailscale" # written by `make bootstrap`; API over the tailnet (LAN copy: ../kubeconfig)
-}
-
 # ---- GitOps source ----
 variable "git_repo_url" {
   description = "URL of THIS repo, as ArgoCD should clone it (https://github.com/you/opi-k8s.git or git@github.com:you/opi-k8s.git)"

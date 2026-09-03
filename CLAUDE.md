@@ -50,7 +50,7 @@ scripts/
   prepare-sd.sh           optional Linux-only: seed SSH key onto a fresh SD (avoids root/1234 login)
 ansible/
   site.yml                plays in order: firstboot(+nvme) → kernel,common,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
-                          plays after hardening connect as hardening_admin_user (root SSH is off by then); firstboot forces root only when firstboot_ip is set
+                          roles/hardening ends with set_fact ansible_user=hardening_admin_user (root SSH is off by then); firstboot uses root only when firstboot_ip is set
   upgrade-os.yml          manual rolling apt full-upgrade with drain/reboot/uncordon
   kernel.yml              rolling custom-kernel install (`make kernel-install [LIMIT=opi-2]`), drains only if k3s present
   spi-boot.yml            `make spi-boot [LIMIT=opi-2]`: apply roles/nvme/tasks/spi.yml one node at a time (then remove SD cards)
@@ -60,8 +60,8 @@ ansible/
     firstboot   kill Armbian wizard, ssh key, random root pw (→ ansible/secrets/), locale, netplan static IP
     nvme        partition/format/rsync root to NVMe; /boot on SD (bind mount) as stage 1; spi.yml (nvme_spi_boot, default on):
                 u-boot → SPI NOR (write_uboot_platform_mtd, only if blobs differ), /boot → NVMe, SD dropped from fstab → pull the card
-    kernel      stage kernel/debs/*.deb, apt install + hold, reboot (throttle 1) only if running kernel lacks dm-crypt,
-                verify dm_crypt/iscsi_tcp/cifs load; lowpower.yml blacklists wifi/BT/video modules + masks services
+    kernel      stage kernel/debs/*.deb, apt install + hold; drain → reboot → uncordon ONLY when the running kernel lacks
+                dm-crypt (a no-op run touches nothing); verify modules; lowpower.yml blacklists wifi/BT/video + masks services
     common      swap off (zram), cgroup boot args, sysctls, modules (dm_crypt, iscsi_tcp), packages
     tailscale   apt repo, `tailscale up --ssh`, auto-update, records tailscale_ip/tailscale_dns facts
     hardening   ops user + keys, sshd drop-in, nftables (default-drop, k3s-aware), sysctls, fail2ban, journald
@@ -74,7 +74,8 @@ tofu/
                 helm_release of argo/argocd-apps 2.0.5 (CRDs must exist before the Application can be validated)
   secrets.tf    ns monitoring (+grafana-admin), ns tailscale (+operator-oauth) — PSA privileged labels
   longhorn.tf   ns longhorn-system (+longhorn-crypto LUKS key, +longhorn-backup-s3: endpoint + bucket-scoped key pair)
-  variables.tf  git_repo_url, backup_key, storagebox_*, tailscale_oauth_*, grafana_admin_password
+  variables.tf  git_repo_url(+_ssh_private_key_file), backup_key, longhorn_s3_*, tailscale_oauth_*, grafana_admin_password
+  providers.tf  no config_path: kubeconfig comes from KUBE_CONFIG_PATH (mise → kubeconfig-tailscale); same for the backend
 gitops/
   bootstrap/    Helm chart of Applications. values.yaml: repo url/revision + toggles (tailscale, monitoring)
                 templates/: root, argocd(-10), longhorn(-3), tailscale(-5), monitoring(0), kured(5), system-upgrade(5)
@@ -124,8 +125,9 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 
 ## Things to know before running anything
 
-- `make help` lists targets. Order: `make deps` → edit .env/hosts.yml/group_vars → `make key` (save it) →
-  `make kernel` (Docker, ~1 h) → `make bootstrap` → `make argocd`. After first bootstrap: set `ansible_user: ops` and delete `firstboot_ip`.
+- `make help` lists targets. The backup key is derived only inside recipes that need it (NEED_KEY macro). Order: `make deps` → edit .env/hosts.yml/group_vars → `make key` (save it) →
+  `make kernel` (Docker, ~1 h) → `make bootstrap` → `make argocd`. After first bootstrap: delete `firstboot_ip` (the user switch
+  to `ops` is a set_fact at the end of roles/hardening; inventory `ansible_user` is `ops` from the start).
 - `make lint` = ansible-lint, tofu fmt/validate, helm lint bootstrap chart, kustomize build system-upgrade.
 - Owner's laptop location is Ireland (locale en_IE.UTF-8 default; timezone left UTC — ask before changing).
 - Never expose the Longhorn UI on the LAN (no auth). Tailnet ingress only.
@@ -143,7 +145,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 - `roles/firstboot` + `roles/nvme` **work**: boards boot with root on `/dev/nvme0n1p1`, SD at `/media/sd`.
 - 2026-09-02: all three boards run the custom kernel `26.08.0-k8s.1` (packages held), verified via `make kernel-install`.
 - 2026-09-02 evening: `make bootstrap` completed through k3s (3 servers Ready, v1.36.4+k3s1) as `ops`; SD cards removed,
-  u-boot in SPI NOR. Firewall allows only the nodes' /24 + admin hosts 192.168.68.60 (Pi) and .11 (laptop), not the LAN.
+  u-boot in SPI NOR. Firewall allows only the nodes' /24 (hardening_lan_cidrs) + hardening_admin_hosts: 192.168.68.60 (Pi, control_host_ip)
+  and .12 (laptop) — not the LAN.
   Backup play done: restic repo initialised, first snapshot taken, timers set; both kubeconfigs fetched. `make bootstrap` is
   fully verified on hardware. Storage Box facts: restricted shell (only file cmds, no `true`, no `&&`), sub-account SFTP is
   chrooted (login dir /home, `/` unreadable) → restic paths are RELATIVE (`opi-k8s/restic`); an agent with many keys trips
