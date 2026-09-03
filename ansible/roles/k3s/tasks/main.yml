@@ -73,9 +73,16 @@
 
 # k3s ships local-path as the default StorageClass; ours is longhorn-encrypted (gitops/longhorn/manifests). Two defaults
 # make PVCs without a storageClassName ambiguous. k3s only re-applies its packaged manifest on upgrades, so re-assert here.
+- name: Is local-path still a default StorageClass?
+  ansible.builtin.command: >
+    k3s kubectl get storageclass local-path
+    -o jsonpath='{.metadata.annotations.storageclass\.kubernetes\.io/is-default-class}'
+  register: k3s_sc_default
+  changed_when: false
+  failed_when: false
+  when: k3s_role == 'init'
+
 - name: local-path must not be the default StorageClass (longhorn-encrypted is)
   ansible.builtin.command: k3s kubectl annotate storageclass local-path storageclass.kubernetes.io/is-default-class=false --overwrite
-  register: k3s_sc_default
-  changed_when: "'annotated' in k3s_sc_default.stdout and 'unchanged' not in k3s_sc_default.stdout"
-  failed_when: k3s_sc_default.rc != 0 and 'not found' not in k3s_sc_default.stderr
-  when: k3s_role == 'init'
+  changed_when: true
+  when: k3s_role == 'init' and k3s_sc_default.rc == 0 and k3s_sc_default.stdout != 'false'
