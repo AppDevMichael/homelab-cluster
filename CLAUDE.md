@@ -67,7 +67,8 @@ ansible/
     hardening   ops user + keys, sshd drop-in, nftables (default-drop, k3s-aware), sysctls, fail2ban, journald
     updates     unattended-upgrades (security pockets), needrestart, reboot-required flag for kured
     k3s         config.yaml (tls-san incl. tailscale, PSA baseline, audit log, metrics bind), install, wait Ready
-    backup      restic → Storage Box: systemd timer per node, etcd snapshot + /etc/rancher/k3s, prune on init node
+    backup      restic → Storage Box: systemd timer per node, etcd snapshot + /etc/rancher/k3s, prune on init node;
+                /etc/ssh/ssh_config.d/50-storagebox.conf carries port/key/pinned host key so plain `restic` works on a node
 tofu/
   backend.tf    kubernetes backend + OpenTofu state encryption (pbkdf2 from var.backup_key, enforced)
   argocd.tf     helm_release argo-cd (lifecycle ignore_changes: ArgoCD self-manages afterwards) + root app as a 2nd

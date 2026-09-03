@@ -80,6 +80,12 @@
     mode: "0600"
   no_log: true
 
+- name: SSH client config for the Storage Box (port, key, pinned host key — used by restic and by hand)
+  ansible.builtin.template:
+    src: storagebox-ssh.conf.j2
+    dest: /etc/ssh/ssh_config.d/50-storagebox.conf
+    mode: "0644"
+
 - name: restic environment
   ansible.builtin.template:
     src: restic.env.j2
@@ -134,7 +140,6 @@
 - name: Initialise the restic repository (idempotent)
   ansible.builtin.shell: |
     set -a; . /etc/restic/env; set +a
-    r() { restic -o "sftp.command=$RESTIC_SFTP_COMMAND" "$@"; }   # same wrapper as k3s-backup.sh (port 23, key, pinned host key)
-    r snapshots >/dev/null 2>&1 || r init
+    restic snapshots >/dev/null 2>&1 || restic init
   run_once: true
   changed_when: false

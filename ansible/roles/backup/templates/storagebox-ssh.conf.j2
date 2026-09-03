@@ -1,0 +1,9 @@
+# Managed by Ansible — how root reaches the Hetzner Storage Box (restic's sftp backend runs plain `ssh`).
+# Everything restic needs lives here, so `restic snapshots` works on a node with no extra options.
+Host {{ storagebox_host }}
+    Port 23
+    User {{ storagebox_user }}
+    IdentityFile /etc/restic/storagebox_ed25519
+    IdentitiesOnly yes
+    UserKnownHostsFile /etc/restic/known_hosts
+    StrictHostKeyChecking yes
