@@ -26,8 +26,8 @@ grafana:
   deploymentStrategy:
     type: Recreate         # RWO volume: don't try to run old+new pod at once during rollouts
   resources:
-    requests: { cpu: 50m, memory: 128Mi }
-    limits:   { memory: 256Mi }
+    requests: { cpu: 50m, memory: 256Mi }
+    limits:   { memory: 768Mi }   # Grafana 13 + Longhorn/k8s dashboards sat at 239Mi and got OOM-killed at 256Mi
   grafana.ini:
     analytics: { check_for_updates: false, reporting_enabled: false }
     users: { default_theme: dark }
@@ -63,8 +63,8 @@ prometheus:
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
     resources:
-      requests: { cpu: 200m, memory: 512Mi }
-      limits:   { memory: 1Gi }
+      requests: { cpu: 200m, memory: 1Gi }
+      limits:   { memory: 2560Mi }   # was at 863Mi of 1Gi after 4h; nodes have 12 GB
     storageSpec:
       volumeClaimTemplate:
         spec:
