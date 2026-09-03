@@ -1,6 +1,6 @@
 variable "kubeconfig_path" {
   type    = string
-  default = "../kubeconfig"
+  default = "../kubeconfig-tailscale" # written by `make bootstrap`; API over the tailnet (LAN copy: ../kubeconfig)
 }
 
 # ---- GitOps source ----
@@ -15,11 +15,10 @@ variable "git_revision" {
   default     = "main"
 }
 
-variable "git_ssh_private_key" {
-  description = "Deploy key for a private repo (SSH URL). Leave empty for public HTTPS repos."
+variable "git_ssh_private_key_file" {
+  description = "Path to the SSH private key ArgoCD uses to clone (SSH URL). Empty = anonymous HTTPS clone. (tfvars can't call file(), so this is a path.)"
   type        = string
   default     = ""
-  sensitive   = true
 }
 
 # ---- ArgoCD ----
@@ -27,6 +26,12 @@ variable "argocd_chart_version" {
   description = "argo/argo-cd chart version. Keep in sync with gitops/bootstrap/templates/argocd.yaml"
   type        = string
   default     = "10.4.2"
+}
+
+variable "argocd_apps_chart_version" {
+  description = "argo/argocd-apps chart version (seeds the root Application; GA, verified on the argo-helm index)"
+  type        = string
+  default     = "2.0.5"
 }
 
 # ---- Secrets ArgoCD apps depend on (never go in git) ----

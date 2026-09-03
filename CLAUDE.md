@@ -1,8 +1,8 @@
 # CLAUDE.md — project context for Claude Code
 
 This repo is a complete, GitOps-driven Kubernetes lab for **three Orange Pi 4 Pro boards (arm64, Armbian)**.
-The Ansible half (`make bootstrap`) has been **executed and verified on the real boards (2026-09-02)**; the OpenTofu +
-ArgoCD half (`make argocd`, `gitops/`) is still "carefully written, unvalidated" until the owner confirms otherwise.
+Both halves have been **executed and verified on the real boards**: Ansible (`make bootstrap`, 2026-09-02) and OpenTofu +
+ArgoCD (`make argocd`, 2026-09-03: all six Applications Synced/Healthy, Grafana/Prometheus on LUKS Longhorn volumes).
 
 ## The owner's hard requirements (do not regress these)
 
@@ -68,7 +68,8 @@ ansible/
     backup      restic → Storage Box: systemd timer per node, etcd snapshot + /etc/rancher/k3s, prune on init node
 tofu/
   backend.tf    kubernetes backend + OpenTofu state encryption (pbkdf2 from var.backup_key, enforced)
-  argocd.tf     helm_release argo-cd (lifecycle ignore_changes: ArgoCD self-manages afterwards) + root app
+  argocd.tf     helm_release argo-cd (lifecycle ignore_changes: ArgoCD self-manages afterwards) + root app as a 2nd
+                helm_release of argo/argocd-apps 2.0.5 (CRDs must exist before the Application can be validated)
   secrets.tf    ns monitoring (+grafana-admin), ns tailscale (+operator-oauth) — PSA privileged labels
   longhorn.tf   ns longhorn-system (+longhorn-crypto LUKS key, +longhorn-backup-s3: endpoint + bucket-scoped key pair)
   variables.tf  git_repo_url, backup_key, storagebox_*, tailscale_oauth_*, grafana_admin_password
@@ -90,7 +91,7 @@ gitops/
 ## Pinned versions (all GA, verified 2026-09-01)
 
 k3s v1.36.4+k3s1 · argo-cd chart 10.4.2 · kube-prometheus-stack 88.3.0 · longhorn 1.12.0 ·
-tailscale-operator 1.102.3 · kured chart 6.0.0 · system-upgrade-controller v0.18.0 ·
+tailscale-operator 1.102.3 · kured chart 6.0.0 · argocd-apps chart 2.0.5 · system-upgrade-controller v0.18.0 ·
 OpenTofu 1.12.6 · Ansible 14.3.1 community package (= core 2.21.3 + collections) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 ·
 hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · hashicorp/kubernetes ~>2.38
 
@@ -99,6 +100,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 - 3 servers, no agents: etcd quorum + all boards schedulable. Losing 1 node is fine, losing 2 is not.
 - Tailscale is for *access* (SSH, kubectl, UIs); pod traffic stays on LAN flannel. Node Tailscale IPs and
   MagicDNS names are in the API cert. Two kubeconfigs are written: `kubeconfig` (LAN), `kubeconfig-tailscale`.
+  **Default is the Tailscale one** (mise KUBECONFIG, Tofu backend + providers): the LAN firewall only admits fixed admin
+  IPs and the laptop's DHCP lease moved once. Ansible still uses LAN `ansible_host` (it doubles as the node's cluster IP).
 - nftables never `flush ruleset` (would wipe kube-proxy). Allowed in: lo, established, ICMP, pod/svc CIDRs,
   CNI ifaces, other node IPs, tailscale0 + udp/41641, DHCP, LAN→22/80/443/6443. forward/output untouched.
 - PSA `baseline` enforced cluster-wide; kube-system exempt; monitoring/tailscale/longhorn-system/kured/
@@ -156,9 +159,10 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    impossible from home: the ISP drops port 445 at its edge, verified with TCP traceroute 2026-09-02.)
 4. `scripts/restore-longhorn-volumes.sh`: mimics Longhorn UI "create PV/PVC"; field names from BackupVolume
    status (`KubernetesStatus`, `lastBackupName`) need confirming against 1.12. `DRY_RUN=1` first.
-5. kube-prometheus-stack 88.x / longhorn 1.12 / kured 6 values keys were written from memory of chart schemas;
-   run `helm template` with the values files to catch renamed keys before first sync.
-6. Helm provider v3 syntax in tofu/ and the `encryption {}` block: run `tofu validate` (needs network).
+5. (done 2026-09-03) all charts `helm template` clean and deployed; Longhorn manager can lose a startup race on the
+   `guaranteed-instance-manager-cpu` setting and crash-loop once on one node — it self-heals on restart.
+6. (done) Tofu validated + applied: the root Application is a 2nd helm_release (argocd-apps); `file()` is not allowed
+   in tfvars (hence git_ssh_private_key_file); backend/providers use kubeconfig-tailscale.
 7. system-upgrade Plan: `channel: v1.36` chosen to match the Ansible pin; do not use `stable` (could be lower).
 
 ## Agreed next batch (not done yet)

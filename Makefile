@@ -38,9 +38,9 @@ bootstrap:         ## nodes: kernel, prep, Tailscale, hardening, updates, k3s HA
 	@test -n "$(BACKUP_KEY)" || (echo "BACKUP_KEY empty — is your SSH key in the agent?"; exit 1)
 	cd ansible && ansible-playbook site.yml
 
-argocd:            ## bootstrap ArgoCD + secrets; ArgoCD deploys gitops/  (state lives in the cluster)
+argocd:            ## bootstrap ArgoCD + secrets; ArgoCD deploys gitops/  (state lives in the cluster). APPROVE=1 skips the prompt
 	@test -n "$(BACKUP_KEY)" || (echo "BACKUP_KEY empty — is your SSH key in the agent?"; exit 1)
-	cd tofu && tofu init && tofu apply
+	cd tofu && tofu init -reconfigure && tofu apply $(if $(APPROVE),-auto-approve,)
 	scripts/backup-config.sh backup || true
 
 state-migrate:     ## one-off: move an existing local terraform.tfstate into the cluster backend

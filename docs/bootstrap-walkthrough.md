@@ -453,7 +453,7 @@ What Tofu creates, in dependency order:
 
 | Resource | File | Notes |
 |---|---|---|
-| Namespace `argocd`, optional repo Secret `repo-opi-k8s` | `tofu/argocd.tf` | Secret only when `git_ssh_private_key` is set |
+| Namespace `argocd`, optional repo Secret `repo-opi-k8s` | `tofu/argocd.tf` | Secret only when `git_ssh_private_key_file` is set |
 | Helm release `argocd` (argo-cd chart 10.4.2) | `tofu/argocd.tf` | Values = `gitops/argocd/values.yaml` + `root-app.yaml.tftpl`, which adds the `root` Application as an `extraObjects` entry. `ignore_changes = [version, values]` afterwards |
 | Namespace `monitoring` (PSA privileged), Secret `grafana-admin` | `tofu/secrets.tf` | Password from tfvars or random; `make grafana-password` |
 | Namespace `tailscale` (privileged), Secret `operator-oauth` | `tofu/secrets.tf` | Only when `tailscale_oauth_client_id` is set |

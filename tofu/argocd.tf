@@ -10,7 +10,7 @@ resource "kubernetes_namespace_v1" "argocd" {
 
 # Deploy key for private repos (optional)
 resource "kubernetes_secret_v1" "argocd_repo" {
-  count = var.git_ssh_private_key != "" ? 1 : 0
+  count = var.git_ssh_private_key_file != "" ? 1 : 0
   metadata {
     name      = "repo-opi-k8s"
     namespace = kubernetes_namespace_v1.argocd.metadata[0].name
@@ -21,7 +21,7 @@ resource "kubernetes_secret_v1" "argocd_repo" {
   data = {
     type          = "git"
     url           = var.git_repo_url
-    sshPrivateKey = var.git_ssh_private_key
+    sshPrivateKey = file(pathexpand(var.git_ssh_private_key_file))
   }
 }
 
@@ -34,9 +34,27 @@ resource "helm_release" "argocd" {
   wait       = true
   timeout    = 600
 
+  values = [file("${path.module}/../gitops/argocd/values.yaml")]
+
+  lifecycle {
+    ignore_changes = [version, values]
+  }
+
+  depends_on = [kubernetes_secret_v1.argocd_repo]
+}
+
+# Root "app of apps": points ArgoCD at gitops/bootstrap in this repo. A separate release of the argocd-apps
+# chart, ordered after argo-cd: the Application CRD must exist before Helm can validate this manifest
+# (rendering it as extraObjects inside the argo-cd release fails on a fresh cluster for that reason).
+resource "helm_release" "root_app" {
+  name       = "argocd-root"
+  namespace  = kubernetes_namespace_v1.argocd.metadata[0].name
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argocd-apps"
+  version    = var.argocd_apps_chart_version
+  wait       = false # ArgoCD reconciles it; nothing to wait for here
+
   values = [
-    file("${path.module}/../gitops/argocd/values.yaml"),
-    # Root "app of apps": points ArgoCD at gitops/bootstrap in this repo.
     templatefile("${path.module}/root-app.yaml.tftpl", {
       repo_url = var.git_repo_url
       revision = var.git_revision
@@ -44,8 +62,8 @@ resource "helm_release" "argocd" {
   ]
 
   lifecycle {
-    ignore_changes = [version, values]
+    ignore_changes = [version, values] # gitops/bootstrap/templates/root.yaml owns it from then on
   }
 
-  depends_on = [kubernetes_secret_v1.argocd_repo]
+  depends_on = [helm_release.argocd]
 }

@@ -1,29 +1,26 @@
-extraObjects:
-  - apiVersion: argoproj.io/v1alpha1
-    kind: Application
-    metadata:
-      name: root
+# values for the argo/argocd-apps chart (applications is a map keyed by name)
+applications:
+  root:
+    namespace: argocd
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+    project: default
+    source:
+      repoURL: ${repo_url}
+      targetRevision: ${revision}
+      path: gitops/bootstrap
+      helm:
+        parameters:
+          - name: repo.url
+            value: ${repo_url}
+          - name: repo.revision
+            value: ${revision}
+    destination:
+      server: https://kubernetes.default.svc
       namespace: argocd
-      finalizers:
-        - resources-finalizer.argocd.argoproj.io
-    spec:
-      project: default
-      source:
-        repoURL: ${repo_url}
-        targetRevision: ${revision}
-        path: gitops/bootstrap
-        helm:
-          parameters:
-            - name: repo.url
-              value: ${repo_url}
-            - name: repo.revision
-              value: ${revision}
-      destination:
-        server: https://kubernetes.default.svc
-        namespace: argocd
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-        syncOptions:
-          - CreateNamespace=true
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true

@@ -1,9 +1,9 @@
-kubeconfig_path = "../kubeconfig"
+kubeconfig_path = "../kubeconfig-tailscale"
 
 # Push this repo somewhere ArgoCD can reach (GitHub/GitLab/Gitea...) and put the URL here.
 git_repo_url = "https://github.com/YOU/opi-k8s.git"
 git_revision = "main"
-# git_ssh_private_key = file("~/.ssh/opi-k8s-deploy-key")   # private repo via SSH URL
+# git_ssh_private_key_file = "~/.ssh/opi-k8s-deploy-key"   # SSH URL above + this key (deploy key or account key); omit for anonymous HTTPS
 
 # grafana_admin_password = "something-strong"                 # empty = random, `make grafana-password`
 
