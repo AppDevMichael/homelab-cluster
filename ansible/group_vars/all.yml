@@ -70,7 +70,7 @@ hardening_ssh_allow_tcp_forwarding: true  # needed for `kubectl port-forward`-st
 hardening_lan_cidrs:
   - "{{ ansible_host.split('.')[0:3] | join('.') }}.0/24"   # the nodes' own subnet
   - 192.168.68.60/32                                        # rpi5-1 (control host, DNS)
-  - 192.168.68.11/32                                        # laptop — give it a DHCP reservation or update this
+  - 192.168.68.12/32                                        # laptop (DHCP; update here if the lease moves)
 # Extra nftables input rules, e.g. "tcp dport 30080 accept"
 hardening_extra_nft_input_rules: []
 hardening_blacklist_modules: [dccp, sctp, rds, tipc, cramfs, freevxfs, jffs2, hfs, hfsplus, udf]   # add usb-storage if you never use USB disks

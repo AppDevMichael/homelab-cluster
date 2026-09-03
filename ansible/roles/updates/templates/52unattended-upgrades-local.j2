@@ -1,4 +1,7 @@
 // Managed by Ansible. Overrides /etc/apt/apt.conf.d/50unattended-upgrades.
+// apt config LISTS MERGE across files: without #clear, Armbian's 50unattended-upgrades (all Debian updates +
+// origin=Armbian, i.e. kernel/u-boot) would stay active and this file would only add to it.
+#clear Unattended-Upgrade::Origins-Pattern;
 Unattended-Upgrade::Origins-Pattern {
     "{{ updates_security_origin }}";
 {% if updates_include_armbian_repo %}

@@ -52,9 +52,17 @@
     content: |
       DPkg::Post-Invoke { "if command -v needrestart >/dev/null 2>&1; then needrestart -b 2>/dev/null | grep -q 'NEEDRESTART-KSTA: [23]' && touch /var/run/reboot-required || true; fi"; };
 
-- name: Dry-run unattended-upgrades to verify the config parses
-  ansible.builtin.command: unattended-upgrade --dry-run --debug
-  timeout: 300              # a hung connection here once stalled the whole bootstrap silently
+# Not `unattended-upgrade --dry-run`: it waits (forever) for the apt lock, which the apt-daily timers enabled
+# above are often holding. apt-config parses the same files without touching the lock.
+- name: Verify the unattended-upgrades config parses and has our origin pattern
+  ansible.builtin.shell: |
+    set -o pipefail
+    apt-config dump | grep -F 'Unattended-Upgrade::Origins-Pattern::' > /tmp/uu-origins
+    grep -F '{{ updates_security_origin }}' /tmp/uu-origins
+    # exactly our entries, nothing inherited from the Armbian 50unattended-upgrades file
+    [[ $(wc -l < /tmp/uu-origins) -eq {{ 2 if updates_include_armbian_repo else 1 }} ]]
+  args:
+    executable: /bin/bash
   register: uu_dry
   changed_when: false
   failed_when: uu_dry.rc != 0

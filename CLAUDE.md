@@ -1,6 +1,8 @@
 # CLAUDE.md — project context for Claude Code
 
-This repo is a complete, GitOps-driven Kubernetes lab for **three Orange Pi 4 Pro boards (arm64, Armbian)**.
+This repo is the owner's **home Kubernetes cluster** on **three Orange Pi 4 Pro boards (arm64, Armbian)** — GitOps-driven,
+used for learning but also running **real workloads**: treat it as production (canary one node first, no casual reboots,
+no disruptive experiments on the live cluster).
 Both halves have been **executed and verified on the real boards**: Ansible (`make bootstrap`, 2026-09-02) and OpenTofu +
 ArgoCD (`make argocd`, 2026-09-03: all six Applications Synced/Healthy, Grafana/Prometheus on LUKS Longhorn volumes).
 
