@@ -4,13 +4,6 @@
     name: [unattended-upgrades, apt-listchanges, needrestart]
     state: present
 
-- name: Detect distro family for security origin pattern
-  ansible.builtin.set_fact:
-    updates_security_origin: >-
-      {{ 'origin=Debian,codename=${distro_codename},label=Debian-Security'
-         if ansible_facts['distribution'] == 'Debian'
-         else 'origin=Ubuntu,archive=${distro_codename}-security' }}
-
 - name: Configure unattended-upgrades policy
   ansible.builtin.template:
     src: 52unattended-upgrades-local.j2

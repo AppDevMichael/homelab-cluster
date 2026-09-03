@@ -17,12 +17,6 @@ variable "git_ssh_private_key_file" {
 }
 
 # ---- ArgoCD ----
-variable "argocd_chart_version" {
-  description = "argo/argo-cd chart version. Keep in sync with gitops/bootstrap/templates/argocd.yaml"
-  type        = string
-  default     = "10.4.2"
-}
-
 variable "argocd_apps_chart_version" {
   description = "argo/argocd-apps chart version (seeds the root Application; GA, verified on the argo-helm index)"
   type        = string

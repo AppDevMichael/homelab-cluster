@@ -1,38 +1,63 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":dependencyDashboard"],
-  "ignoreUnstable": true,
-  "respectLatest": true,
-  "mise": { "enabled": true },
+  "extends": [
+    "config:recommended"
+  ],
+  "mise": {
+    "enabled": true
+  },
   "argocd": {
-    "managerFilePatterns": ["/^gitops/bootstrap/templates/.+\\.yaml$/"]
+    "managerFilePatterns": [
+      "/^gitops/bootstrap/templates/.+\\.yaml$/"
+    ]
   },
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^ansible/group_vars/all\\.yml$/"],
-      "matchStrings": ["k3s_version:\\s*\"(?<currentValue>v[\\d.]+\\+k3s\\d+)\""],
+      "managerFilePatterns": [
+        "/^ansible/group_vars/all\\.yml$/"
+      ],
+      "matchStrings": [
+        "k3s_version:\\s*\"(?<currentValue>v[\\d.]+\\+k3s\\d+)\""
+      ],
       "depNameTemplate": "k3s-io/k3s",
       "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^gitops/system-upgrade/kustomization\\.yaml$/"],
-      "matchStrings": ["system-upgrade-controller/releases/download/(?<currentValue>v[\\d.]+)/"],
+      "managerFilePatterns": [
+        "/^gitops/system-upgrade/kustomization\\.yaml$/"
+      ],
+      "matchStrings": [
+        "system-upgrade-controller/releases/download/(?<currentValue>v[\\d.]+)/"
+      ],
       "depNameTemplate": "rancher/system-upgrade-controller",
       "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^tofu/variables\\.tf$/"],
-      "matchStrings": ["argocd_chart_version[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[\\d.]+)\""],
-      "depNameTemplate": "argo-cd",
+      "managerFilePatterns": [
+        "/^tofu/variables\\.tf$/"
+      ],
+      "matchStrings": [
+        "argocd_apps_chart_version[\\s\\S]*?default\\s*=\\s*\"(?<currentValue>[\\d.]+)\""
+      ],
+      "depNameTemplate": "argocd-apps",
       "datasourceTemplate": "helm",
       "registryUrlTemplate": "https://argoproj.github.io/argo-helm"
     }
   ],
   "packageRules": [
-    { "matchUpdateTypes": ["patch"], "automerge": false },
-    { "matchDepNames": ["kube-prometheus-stack"], "matchUpdateTypes": ["major"], "prBodyNotes": ["Major bump: read the chart's upgrade notes — CRD changes may need a manual step."] }
+    {
+      "matchDepNames": [
+        "kube-prometheus-stack"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "prBodyNotes": [
+        "Major bump: read the chart's upgrade notes \u2014 CRD changes may need a manual step."
+      ]
+    }
   ]
 }

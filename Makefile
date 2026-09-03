@@ -5,8 +5,8 @@ NEED_KEY = export BACKUP_KEY="$${BACKUP_KEY:-$$(scripts/backup-key.sh)}"; export
 PLAY = cd ansible && ansible-playbook
 LIMITFLAG = $(if $(LIMIT),-l $(LIMIT),)
 
-.PHONY: help deps lint bootstrap argocd all nodes apps key argocd-password grafana-password \
-        backup-config backup-restore-config restore-volumes os-upgrade destroy state-migrate state-show \
+.PHONY: help deps lint bootstrap argocd nodes apps key argocd-password grafana-password \
+        backup-config backup-restore-config restore-volumes os-upgrade destroy state-show \
         kernel kernel-install kernel-clean spi-boot
 
 help:
@@ -43,14 +43,9 @@ argocd:            ## bootstrap ArgoCD + secrets; ArgoCD deploys gitops/  (state
 	$(NEED_KEY); cd tofu && tofu init -reconfigure && tofu apply $(if $(APPROVE),-auto-approve,)
 	$(NEED_KEY); scripts/backup-config.sh backup || true
 
-state-migrate:     ## one-off: move an existing local terraform.tfstate into the cluster backend
-	$(NEED_KEY); cd tofu && tofu init -migrate-state && rm -f terraform.tfstate terraform.tfstate.backup
-
 state-show:        ## where is the state and what's in it
 	kubectl -n kube-system get secret tfstate-default-opi-k8s -o jsonpath='{.metadata.creationTimestamp}'; echo
 	$(NEED_KEY); cd tofu && tofu state list
-
-all: deps bootstrap argocd
 
 nodes:             ## node status
 	kubectl get nodes -o wide

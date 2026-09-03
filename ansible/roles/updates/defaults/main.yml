@@ -1,0 +1,3 @@
+---
+# Debian security pocket only (the boards are Debian trixie by requirement); Armbian repo is manual (`make os-upgrade`)
+updates_security_origin: "origin=Debian,codename=${distro_codename},label=Debian-Security"

@@ -48,7 +48,6 @@ base_packages:
   - htop
   - chrony
   - cryptsetup     # Longhorn encrypted volumes (dm-crypt/LUKS)
-  - cifs-utils     # Longhorn backups to the Storage Box over SMB
 
 # ---- Tailscale ---------------------------------------------------------
 # Create a key at https://login.tailscale.com/admin/settings/keys

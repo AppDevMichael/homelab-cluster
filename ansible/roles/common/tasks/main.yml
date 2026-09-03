@@ -40,20 +40,12 @@
     state: absent
 
 # --- Kernel modules + sysctl -----------------------------------------------
-- name: Load required kernel modules
+- name: Load required kernel modules (and persist them under /etc/modules-load.d)
   community.general.modprobe:
     name: "{{ item }}"
     state: present
+    persistent: present
   loop: [overlay, br_netfilter, dm_crypt, iscsi_tcp]
-
-- name: Persist kernel modules
-  ansible.builtin.copy:
-    dest: /etc/modules-load.d/k8s.conf
-    content: |
-      overlay
-      br_netfilter
-      dm_crypt
-      iscsi_tcp
 
 - name: Kubernetes sysctl settings
   ansible.posix.sysctl:

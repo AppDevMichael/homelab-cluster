@@ -64,13 +64,6 @@
   delay: 10
   changed_when: false
 
-- name: Symlink kubectl for convenience
-  ansible.builtin.file:
-    src: /usr/local/bin/k3s
-    dest: /usr/local/bin/kubectl
-    state: link
-    force: true
-
 # k3s ships local-path as the default StorageClass; ours is longhorn-encrypted (gitops/longhorn/manifests). Two defaults
 # make PVCs without a storageClassName ambiguous. k3s only re-applies its packaged manifest on upgrades, so re-assert here.
 - name: Is local-path still a default StorageClass?

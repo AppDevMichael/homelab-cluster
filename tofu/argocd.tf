@@ -25,12 +25,16 @@ resource "kubernetes_secret_v1" "argocd_repo" {
   }
 }
 
+locals {
+  argocd_chart_version = regex("targetRevision: ([0-9.]+)", file("${path.module}/../gitops/bootstrap/templates/argocd.yaml"))[0]
+}
+
 resource "helm_release" "argocd" {
   name       = "argocd"
   namespace  = kubernetes_namespace_v1.argocd.metadata[0].name
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
-  version    = var.argocd_chart_version
+  version    = local.argocd_chart_version # single pin: gitops/bootstrap/templates/argocd.yaml (Renovate bumps it there)
   wait       = true
   timeout    = 600
 

@@ -131,7 +131,7 @@
   when: kernel_reboot_needed
 
 - name: Verify the storage modules load
-  ansible.builtin.command: modprobe -a dm_crypt iscsi_tcp cifs
+  ansible.builtin.command: modprobe -a dm_crypt iscsi_tcp
   changed_when: false
 
 - name: Uncordon after the reboot

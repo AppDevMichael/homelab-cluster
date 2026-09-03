@@ -61,7 +61,7 @@ ansible/
     nvme        partition/format/rsync root to NVMe; /boot on SD (bind mount) as stage 1; spi.yml (nvme_spi_boot, default on):
                 u-boot → SPI NOR (write_uboot_platform_mtd, only if blobs differ), /boot → NVMe, SD dropped from fstab → pull the card
     kernel      stage kernel/debs/*.deb, apt install + hold; drain → reboot → uncordon ONLY when the running kernel lacks
-                dm-crypt (a no-op run touches nothing); verify modules; lowpower.yml blacklists wifi/BT/video + masks services
+                dm-crypt (a no-op run touches nothing); verify dm_crypt/iscsi_tcp; lowpower.yml blacklists wifi/BT/video + masks services
     common      swap off (zram), cgroup boot args, sysctls, modules (dm_crypt, iscsi_tcp), packages
     tailscale   apt repo, `tailscale up --ssh`, auto-update, records tailscale_ip/tailscale_dns facts
     hardening   ops user + keys, sshd drop-in, nftables (default-drop, k3s-aware), sysctls, fail2ban, journald
@@ -94,7 +94,7 @@ gitops/
 
 ## Pinned versions (all GA, verified 2026-09-01)
 
-k3s v1.36.4+k3s1 · argo-cd chart 10.4.2 · kube-prometheus-stack 88.3.0 · longhorn 1.12.0 ·
+k3s v1.36.4+k3s1 · argo-cd chart 10.4.2 (pinned only in gitops/bootstrap/templates/argocd.yaml) · kube-prometheus-stack 88.3.0 · longhorn 1.12.0 ·
 tailscale-operator 1.102.3 · kured chart 6.0.0 · argocd-apps chart 2.0.5 · system-upgrade-controller v0.18.0 ·
 OpenTofu 1.12.6 · Ansible 14.3.1 community package (= core 2.21.3 + collections) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 ·
 hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · hashicorp/kubernetes ~>2.38
@@ -121,8 +121,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
   use bucket versioning + "keep prior versions 30 days" and bucket-scoped keys instead.
 - DR order: restore laptop secrets from restic → `make bootstrap` → set monitoring.enabled=false in
   gitops/bootstrap/values.yaml → `make argocd` → wait for backupvolumes → `make restore-volumes` → re-enable.
-- ArgoCD manages itself; Tofu's helm_release has `ignore_changes = [version, values]`. Bump ArgoCD in git,
-  mirror the version in tofu/variables.tf so a fresh bootstrap matches.
+- ArgoCD manages itself; Tofu's helm_release has `ignore_changes = [version, values]` and reads the chart version from
+  gitops/bootstrap/templates/argocd.yaml (one pin, Renovate bumps it there).
 
 ## Things to know before running anything
 
@@ -171,16 +171,19 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    in tfvars (hence git_ssh_private_key_file); backend/providers use kubeconfig-tailscale.
 7. system-upgrade Plan: `channel: v1.36` chosen to match the Ansible pin; do not use `stable` (could be lower).
 
-## Agreed next batch (not done yet)
+## Agreed next batch (not done yet — verified against the repo 2026-09-03)
 
-1. Alertmanager receiver (Discord/Telegram/email) + kured `notifyUrl` via Secret — alerts currently go nowhere.
+1. Alertmanager receiver (Discord/Telegram/email) via a Tofu-created Secret + kured `notifyUrl` — alerts currently go nowhere.
 2. Dead man's switch: Alertmanager `Watchdog` → healthchecks.io.
 3. ArgoCD metrics ServiceMonitor + alert on apps not Synced/Healthy.
-4. Turn off LAN (plain-HTTP) ingresses for ArgoCD/Grafana once Tailscale ingress works.
-5. `make check`: nodes Ready, apps Synced, backup target available, restic snapshot <24h, no degraded volumes.
+4. Tailscale operator on (`gitops/bootstrap/values.yaml` tailscale.enabled + OAuth client in tfvars), then turn off the
+   LAN (plain-HTTP) ingresses for ArgoCD/Grafana. Tailscale SSH already works; only the operator/ingresses are pending.
+5. `make check`: nodes Ready, apps Synced, Longhorn backup target available, restic snapshot <24h, no degraded volumes.
 6. CI workflow running `make lint` on PRs (so Renovate PRs are validated).
-Later: Longhorn System Backup, Loki+Alloy logs, cert-manager/local DNS, Trivy, NetworkPolicies, RAM check
-(confirm Orange Pi 4 Pro memory; trim limits if 4 GB), UPS.
+7. `roles/power` (owner asked 2026-09-02): cap CPU clocks (big cores 1.4 GHz, little 1.2 GHz), status LED off, USB
+   controllers unbound, PCIe ASPM behind an off-by-default flag — measure first with a smart plug / inline USB-C meter.
+Later: Longhorn System Backup, Loki+Alloy logs, cert-manager/local DNS, Trivy, NetworkPolicies, UPS.
+Settled (do not reopen): RAM is 12 GB per board; SD cards are out (SPI boot); Longhorn backups go to B2 (ISP blocks SMB).
 
 ## Conventions when editing
 

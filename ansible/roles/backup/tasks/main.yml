@@ -128,7 +128,6 @@
         Persistent=true
         [Install]
         WantedBy=timers.target
-  notify: reload systemd
 
 - name: Enable backup timer
   ansible.builtin.systemd:

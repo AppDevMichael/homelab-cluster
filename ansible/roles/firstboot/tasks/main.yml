@@ -41,10 +41,6 @@
     dest: /etc/default/locale
     content: "LANG={{ firstboot_locale }}\n"
 
-- name: Make sure python3 + basics exist (Armbian minimal images)
-  ansible.builtin.raw: test -x /usr/bin/python3 || (apt-get update && apt-get install -y python3)
-  changed_when: false
-
 # ---- Static IP (only if the node isn't already on its inventory IP) ----
 - name: Current primary interface / address
   ansible.builtin.set_fact:
