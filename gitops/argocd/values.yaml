@@ -31,7 +31,7 @@ repoServer:
     limits:   { memory: 512Mi }
 
 applicationSet:
-  enabled: false        # not used; saves ~100Mi
+  replicas: 0           # not used (chart 10 has no enabled toggle; 0 replicas = no pod, saves ~100Mi)
 dex:
   enabled: false        # local admin login only; enable for SSO
 notifications:

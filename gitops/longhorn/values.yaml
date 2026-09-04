@@ -40,6 +40,13 @@ defaultSettings:
   # opi-3 is tainted quorum-only; Longhorn's DaemonSets/CSI still need to run there (node agent), replicas don't
   taintToleration: "node-role.kubernetes.io/quorum-only=true:NoSchedule"
 
+# CSI sidecars default to 3 replicas each (12 pods); only two nodes can schedule them and one each is plenty here
+csi:
+  attacherReplicaCount: 1
+  provisionerReplicaCount: 1
+  resizerReplicaCount: 1
+  snapshotterReplicaCount: 1
+
 longhornManager:
   tolerations:
     - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }

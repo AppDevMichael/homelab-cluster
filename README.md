@@ -288,3 +288,19 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 - **Storage** is Longhorn (2 replicas, encrypted). `local-path` still exists for throwaway data. Longhorn's own UI is only exposed on the tailnet (it has no auth).
 - **S3 keys** — Longhorn's backup target is an S3 bucket (B2); a bucket-scoped key pair lives in a Secret (Tofu) and in your tfvars. Consider a Storage Box *sub-account* limited to `/opi-k8s` with its own password.
 - **Memory** is the constraint on SBCs — limits are deliberately small. If Prometheus OOMs, lower `retentionSize` or raise its limit.
+
+## Links
+
+| What | Where | Notes |
+|---|---|---|
+| Grafana | http://grafana.192.168.69.101.nip.io | `admin` / `make grafana-password`; LAN from an admin host only |
+| ArgoCD | http://argocd.192.168.69.101.nip.io | `admin` / `make argocd-password` |
+| Longhorn UI | tailnet Ingress only (no auth) — enable the Tailscale operator (`gitops/bootstrap/values.yaml`) | never on the LAN |
+| Nodes (SSH) | `ssh ops@192.168.69.101` … `.103`, or `ssh ops@opi-1.tail1b6ff6.ts.net` (Tailscale SSH) | root SSH is off |
+| kubectl | `make nodes` / `make apps` (kubeconfig-tailscale by default) | `make check` = health summary |
+| Tailscale admin | https://login.tailscale.com/admin/machines | ACL `ssh` rule for `tag:k8s` |
+| Backblaze B2 | https://secure.backblaze.com/b2_buckets.htm — bucket `mico-lab` | Longhorn volume backups |
+| Hetzner Storage Box | https://console.hetzner.com — sub-account `u656965-sub1`, SFTP port 23 | restic (etcd + laptop config) |
+| GitHub repo | https://github.com/AppDevMichael/homelab-cluster | CI: Actions → lint |
+| Renovate | Dependency Dashboard issue in the repo (once the Renovate app is installed) | version bumps as PRs |
+| Docs | `docs/bootstrap-walkthrough.md`, `CLAUDE.md`, `kernel/README.md` | |
