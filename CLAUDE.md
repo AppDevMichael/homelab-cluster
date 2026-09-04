@@ -85,7 +85,7 @@ gitops/
                 _helpers.tpl: shared syncPolicy (automated prune+selfHeal, ServerSideApply, retry)
   argocd/       values (insecure behind ingress, dex/notifications/appset off, small resources)
   longhorn/     values (defaultBackupStore s3://<bucket>@<region>/opi-k8s/longhorn/ — B2; nodeDownPodDeletionPolicy, preUpgradeChecker off) + manifests/
-                (StorageClasses: longhorn-encrypted=default with LUKS secret refs, longhorn; RecurringJobs)
+                (StorageClass longhorn-encrypted=default with LUKS secret refs; Longhorn itself manages the plain `longhorn` class; RecurringJobs)
   monitoring/   kube-prometheus-stack values (existingSecret grafana-admin, longhorn-encrypted PVCs,
                 k3s control-plane endpoints = node IPs) + manifests/sbc-alerts.yaml (temp/disk/mem/longhorn)
   tailscale/    operator values (oauth from secret, apiServerProxy on) + manifests/ (Ingress class tailscale

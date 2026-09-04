@@ -104,6 +104,17 @@
   changed_when: true
   when: k3s_role == 'init' and k3s_sc_default.rc == 0 and k3s_sc_default.stdout != 'false'
 
+# k3s applies node-taint/node-label only at first registration, so do it with kubectl (idempotent, works on existing nodes)
+- name: Quorum-only node is tainted and labelled (etcd member + DaemonSets only)
+  ansible.builtin.command: >
+    k3s kubectl {{ item }}
+  loop:
+    - taint node {{ inventory_hostname }} node-role.kubernetes.io/quorum-only=true:NoSchedule --overwrite
+    - label node {{ inventory_hostname }} node-role.kubernetes.io/quorum-only=true node.longhorn.io/create-default-disk=false --overwrite
+  register: k3s_taint
+  changed_when: "'unchanged' not in k3s_taint.stdout and 'not labeled' not in k3s_taint.stdout"
+  when: k3s_quorum_only | default(false)
+
 - name: Quorum-only node holds no Longhorn replicas (no-op until Longhorn exists)
   ansible.builtin.command: >
     k3s kubectl -n longhorn-system patch nodes.longhorn.io {{ inventory_hostname }} --type merge

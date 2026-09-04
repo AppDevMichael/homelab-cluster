@@ -3,14 +3,6 @@ token: "{{ k3s_token }}"
 node-name: "{{ inventory_hostname }}"
 node-ip: "{{ ansible_host }}"
 write-kubeconfig-mode: "0644"
-{% if k3s_quorum_only | default(false) %}
-# etcd quorum member only: no workloads (DaemonSets carry a toleration), no Longhorn replicas
-node-taint:
-  - "node-role.kubernetes.io/quorum-only=true:NoSchedule"
-node-label:
-  - "node-role.kubernetes.io/quorum-only=true"
-  - "node.longhorn.io/create-default-disk=false"
-{% endif %}
 {% if k3s_role == 'init' %}
 cluster-init: true
 {% else %}
