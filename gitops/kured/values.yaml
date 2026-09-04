@@ -20,3 +20,4 @@ resources:
   limits:   { memory: 64Mi }
 tolerations:
   - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
+  - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }

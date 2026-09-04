@@ -44,7 +44,6 @@ base_packages:
   - python3-debian     # deb822_repository (Tailscale apt source)
   - nfs-common
   - open-iscsi        # Longhorn (iscsiadm on the host)
-  - jq
   - htop
   - chrony
   - cryptsetup     # Longhorn encrypted volumes (dm-crypt/LUKS)

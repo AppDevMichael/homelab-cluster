@@ -19,8 +19,8 @@
     root_password: "{{ lookup('password', playbook_dir ~ '/secrets/root_password_' ~ inventory_hostname ~ ' length=24 chars=ascii_letters,digits') }}"
   no_log: true
 
-- name: Hash it on the node (no passlib needed on the control machine)
-  ansible.builtin.command: openssl passwd -6 "{{ root_password }}"
+- name: Hash it on the node (no passlib on the control machine; fixed salt so re-runs are no-ops)
+  ansible.builtin.command: openssl passwd -6 -salt "{{ (root_password | hash('sha256'))[:16] }}" "{{ root_password }}"
   register: root_hash
   changed_when: false
   no_log: true
@@ -36,10 +36,13 @@
     name: "{{ firstboot_locale }}"
     state: present
 
-- name: Default locale
-  ansible.builtin.copy:
-    dest: /etc/default/locale
-    content: "LANG={{ firstboot_locale }}\n"
+- name: Default locale   # lineinfile, not copy: update-locale rewrites this file with a header
+  ansible.builtin.lineinfile:
+    path: /etc/default/locale
+    regexp: '^LANG='
+    line: "LANG={{ firstboot_locale }}"
+    create: true
+    mode: "0644"
 
 # ---- Static IP (only if the node isn't already on its inventory IP) ----
 - name: Current primary interface / address

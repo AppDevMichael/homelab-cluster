@@ -51,7 +51,9 @@ scripts/
 ansible/
   site.yml                plays in order: firstboot(+nvme) → kernel,common,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
                           roles/hardening ends with set_fact ansible_user=hardening_admin_user (root SSH is off by then); firstboot uses root only when firstboot_ip is set
-  upgrade-os.yml          manual rolling apt full-upgrade with drain/reboot/uncordon
+  upgrade-os.yml          `make os-upgrade [LIMIT=]`: rolling apt full-upgrade with drain/reboot/uncordon
+  reboot.yml              `make reboot [LIMIT=]`: rolling drain → reboot → uncordon (roles/rolling/tasks/{drain,resume}.yml, shared with
+                          upgrade-os and roles/kernel)
   kernel.yml              rolling custom-kernel install (`make kernel-install [LIMIT=opi-2]`), drains only if k3s present
   spi-boot.yml            `make spi-boot [LIMIT=opi-2]`: apply roles/nvme/tasks/spi.yml one node at a time (then remove SD cards)
   inventory/hosts.yml     ansible_host = target static IP, firstboot_ip = first-boot DHCP IP (remove after)
@@ -137,7 +139,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 
 ## Hardware facts (verified on real boards 2026-09-01)
 
-- Orange Pi 4 Pro = Allwinner A733 (family `sun60iw2`), 8 cores, **12 GB RAM**, NVMe present. Armbian ships it
+- Orange Pi 4 Pro = Allwinner A733 (family `sun60iw2`), 8 cores, NVMe present. **opi-1/opi-2: 12 GB RAM; opi-3: 4 GB**
+  (hardware) → opi-3 is `k3s_quorum_only` (taint+label, no Longhorn replicas): etcd member + DaemonSets only. Armbian ships it
   only as a `.csc` community board → **nightly images only** (`26.11.0-trunk.x`, Debian 13). No stable OS exists.
 - Vendor kernel `6.6.98-vendor-sun60iw2` (upstream config `linux-sun60iw2-vendor.config`) has **no device-mapper
   (`CONFIG_MD`), no dm-crypt, no iSCSI, no XTS, no CIFS**. Decision: **custom kernel** (`make kernel`, `kernel/`), same
@@ -178,12 +181,13 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 3. ArgoCD metrics ServiceMonitor + alert on apps not Synced/Healthy.
 4. Tailscale operator on (`gitops/bootstrap/values.yaml` tailscale.enabled + OAuth client in tfvars), then turn off the
    LAN (plain-HTTP) ingresses for ArgoCD/Grafana. Tailscale SSH already works; only the operator/ingresses are pending.
-5. `make check`: nodes Ready, apps Synced, Longhorn backup target available, restic snapshot <24h, no degraded volumes.
-6. CI workflow running `make lint` on PRs (so Renovate PRs are validated).
+5. (done 2026-09-04) `make check` — also clock offset per node.
+6. (done 2026-09-04) CI: .github/workflows/lint.yml (lint + helm template + verify-repo.sh). Install the Renovate GitHub app for PRs.
 7. `roles/power` (owner asked 2026-09-02): cap CPU clocks (big cores 1.4 GHz, little 1.2 GHz), status LED off, USB
    controllers unbound, PCIe ASPM behind an off-by-default flag — measure first with a smart plug / inline USB-C meter.
 Later: Longhorn System Backup, Loki+Alloy logs, cert-manager/local DNS, Trivy, NetworkPolicies, UPS.
-Settled (do not reopen): RAM is 12 GB per board; SD cards are out (SPI boot); Longhorn backups go to B2 (ISP blocks SMB).
+Settled (do not reopen): opi-1/2 have 12 GB, opi-3 has 4 GB and is quorum-only; SD cards are out (SPI boot); Longhorn backups
+go to B2 (ISP blocks SMB); /var/log is on the NVMe (Armbian ramlog disabled); rx_dropped on end0 is VLAN/LAN noise, not loss.
 
 ## Conventions when editing
 

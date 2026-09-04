@@ -24,6 +24,30 @@
     mode: "0600"
   notify: restart k3s
 
+# The API cert lists every node's Tailscale IP + MagicDNS name. Gather them here for ALL nodes (delegate_facts), so
+# the render is identical whether or not roles/tailscale ran in this invocation — otherwise a partial run drops
+# the SANs, "changes" the config and restarts k3s, and the next full run flips it back.
+- name: Tailscale identity of every node
+  ansible.builtin.command: tailscale status --json
+  register: k3s_ts_status
+  changed_when: false
+  check_mode: false          # read-only; needed for --check renders too
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['k3s_cluster'] }}"
+  run_once: true
+
+- name: Record Tailscale IP + DNS name as facts on each node
+  ansible.builtin.set_fact:
+    tailscale_ip: "{{ (item.stdout | from_json).Self.TailscaleIPs | select('match', '^100\\.') | first }}"
+    tailscale_dns: "{{ (item.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
+  delegate_to: "{{ item.item }}"
+  delegate_facts: true
+  check_mode: false
+  loop: "{{ k3s_ts_status.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  run_once: true
+
 - name: Render k3s config.yaml
   ansible.builtin.template:
     src: config.yaml.j2
@@ -79,3 +103,12 @@
   ansible.builtin.command: k3s kubectl annotate storageclass local-path storageclass.kubernetes.io/is-default-class=false --overwrite
   changed_when: true
   when: k3s_role == 'init' and k3s_sc_default.rc == 0 and k3s_sc_default.stdout != 'false'
+
+- name: Quorum-only node holds no Longhorn replicas (no-op until Longhorn exists)
+  ansible.builtin.command: >
+    k3s kubectl -n longhorn-system patch nodes.longhorn.io {{ inventory_hostname }} --type merge
+    -p '{"spec":{"allowScheduling":false,"evictionRequested":true}}'
+  register: k3s_lh_node
+  changed_when: "'patched' in k3s_lh_node.stdout and 'no change' not in k3s_lh_node.stdout"
+  failed_when: k3s_lh_node.rc != 0 and 'not found' not in k3s_lh_node.stderr and 'NotFound' not in k3s_lh_node.stderr
+  when: k3s_quorum_only | default(false)

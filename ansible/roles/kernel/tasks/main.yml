@@ -110,19 +110,12 @@
   ansible.builtin.set_fact:
     kernel_reboot_needed: "{{ kernel_install is changed or kernel_running_ok.rc != 0 }}"
 
-# Only a reboot is disruptive, so only then drain (and only if k3s is running here). A no-op run touches nothing.
-- name: Is k3s running here?
-  ansible.builtin.stat:
-    path: /var/lib/rancher/k3s/server/cred
-  register: kernel_k3s_present
-
-- name: Drain the node before rebooting
-  ansible.builtin.command: >
-    kubectl drain {{ inventory_hostname }} --ignore-daemonsets --delete-emptydir-data --timeout=300s
-  delegate_to: "{{ groups['k3s_init'][0] }}"
-  changed_when: true
-  throttle: 1
-  when: kernel_reboot_needed and kernel_k3s_present.stat.exists
+# Only a reboot is disruptive, so only then drain. A no-op run touches nothing.
+- name: Drain before rebooting
+  ansible.builtin.include_role:
+    name: rolling
+    tasks_from: drain.yml
+  when: kernel_reboot_needed
 
 - name: Reboot into the new kernel (one node at a time)
   ansible.builtin.reboot:
@@ -135,10 +128,10 @@
   changed_when: false
 
 - name: Uncordon after the reboot
-  ansible.builtin.command: kubectl uncordon {{ inventory_hostname }}
-  delegate_to: "{{ groups['k3s_init'][0] }}"
-  changed_when: true
-  when: kernel_reboot_needed and kernel_k3s_present.stat.exists
+  ansible.builtin.include_role:
+    name: rolling
+    tasks_from: resume.yml
+  when: kernel_reboot_needed
 
 - name: Runtime power trim (Wi-Fi/BT/video modules + services)
   ansible.builtin.include_tasks: lowpower.yml

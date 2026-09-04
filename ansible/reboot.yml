@@ -1,0 +1,15 @@
+---
+# Rolling reboot: drain → reboot → uncordon → wait Ready, one node at a time. `make reboot [LIMIT=opi-2]`.
+- name: Rolling reboot
+  hosts: k3s_cluster
+  serial: 1
+  tasks:
+    - ansible.builtin.include_role: { name: rolling, tasks_from: drain.yml }
+    - name: Reboot
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+    - ansible.builtin.include_role: { name: rolling, tasks_from: resume.yml }
+    - name: Settle before the next node
+      ansible.builtin.pause:
+        seconds: 30
+      when: ansible_play_hosts_all | length > 1 and inventory_hostname != ansible_play_hosts_all[-1]

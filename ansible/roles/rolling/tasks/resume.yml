@@ -1,0 +1,24 @@
+---
+# After the disruption: wait for k3s, uncordon, wait Ready. No-op if drain.yml found no k3s.
+- name: Wait for the k3s API on this node
+  ansible.builtin.wait_for:
+    port: 6443
+    host: "{{ ansible_host }}"
+    timeout: 300
+  when: rolling_k3s.stat.exists
+
+- name: Uncordon node
+  ansible.builtin.command: kubectl uncordon {{ inventory_hostname }}
+  delegate_to: "{{ groups['k3s_init'][0] }}"
+  changed_when: true
+  when: rolling_k3s.stat.exists
+
+- name: Wait until Ready
+  ansible.builtin.command: kubectl wait --for=condition=Ready node/{{ inventory_hostname }} --timeout=300s
+  delegate_to: "{{ groups['k3s_init'][0] }}"
+  changed_when: false
+  retries: 5
+  delay: 10
+  register: rolling_ready
+  until: rolling_ready.rc == 0
+  when: rolling_k3s.stat.exists

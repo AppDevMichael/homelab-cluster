@@ -1,0 +1,13 @@
+---
+# Drain this node (if k3s runs here) before something disruptive. Pair with resume.yml.
+- name: Is k3s running here?
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s/server/cred
+  register: rolling_k3s
+
+- name: Drain node
+  ansible.builtin.command: >
+    kubectl drain {{ inventory_hostname }} --ignore-daemonsets --delete-emptydir-data --timeout=300s
+  delegate_to: "{{ groups['k3s_init'][0] }}"
+  changed_when: true
+  when: rolling_k3s.stat.exists

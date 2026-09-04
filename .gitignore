@@ -14,3 +14,4 @@ kernel/build/
 kernel/debs/
 kernel/build.log
 .gitignore
+.ansible/

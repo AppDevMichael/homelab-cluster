@@ -5,9 +5,9 @@ NEED_KEY = export BACKUP_KEY="$${BACKUP_KEY:-$$(scripts/backup-key.sh)}"; export
 PLAY = cd ansible && ansible-playbook
 LIMITFLAG = $(if $(LIMIT),-l $(LIMIT),)
 
-.PHONY: help deps lint bootstrap argocd nodes apps key argocd-password grafana-password \
+.PHONY: help deps lint bootstrap argocd check nodes apps key argocd-password grafana-password \
         backup-config backup-restore-config restore-volumes os-upgrade destroy state-show \
-        kernel kernel-install kernel-clean spi-boot
+        kernel kernel-install kernel-clean spi-boot reboot
 
 help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | column -t -s$$'\t'
@@ -47,6 +47,9 @@ state-show:        ## where is the state and what's in it
 	kubectl -n kube-system get secret tfstate-default-opi-k8s -o jsonpath='{.metadata.creationTimestamp}'; echo
 	$(NEED_KEY); cd tofu && tofu state list
 
+check:             ## cluster health: nodes, ArgoCD apps, pods, Longhorn + backup target, restic snapshot age, timers
+	$(NEED_KEY); scripts/check.sh
+
 nodes:             ## node status
 	kubectl get nodes -o wide
 
@@ -68,7 +71,10 @@ backup-restore-config: ## pull them back (disaster recovery step 1)
 restore-volumes:   ## recreate Longhorn volumes + PV/PVCs from the latest backups (disaster recovery step 3)
 	scripts/restore-longhorn-volumes.sh
 
-os-upgrade:        ## rolling apt full-upgrade (Armbian kernel etc.), one node at a time
+reboot:            ## rolling drain → reboot → uncordon, one node at a time; LIMIT=opi-2 for one node
+	$(PLAY) reboot.yml $(LIMITFLAG)
+
+os-upgrade:        ## rolling apt full-upgrade (Armbian kernel etc.), one node at a time; LIMIT=opi-2 for one node
 	$(PLAY) upgrade-os.yml $(LIMITFLAG)
 
 destroy:           ## remove ArgoCD + bootstrap secrets (nodes and Longhorn data on disk untouched)

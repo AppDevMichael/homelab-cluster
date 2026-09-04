@@ -29,6 +29,17 @@
     create: true
   notify: reboot node
 
+# Armbian keeps /var/log on a 50 MB tmpfs (SD-wear protection) and syncs it to /var/log.hdd now and then:
+# logs are lost on power loss and 50 MB fills. Root is NVMe here — write logs straight to disk. Takes
+# effect at the next reboot (`make reboot`); the service's stop hook writes the RAM copy back first.
+- name: Disable Armbian ramlog
+  ansible.builtin.lineinfile:
+    path: /etc/default/armbian-ramlog
+    regexp: '^#?ENABLED='
+    line: "ENABLED=false"
+    create: true
+    mode: "0644"
+
 - name: Turn off swap now
   ansible.builtin.command: swapoff -a
   changed_when: false

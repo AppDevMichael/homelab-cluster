@@ -37,13 +37,17 @@ defaultSettings:
   upgradeChecker: false
   allowCollectingLonghornUsageMetrics: false
   v2DataEngine: false
+  # opi-3 is tainted quorum-only; Longhorn's DaemonSets/CSI still need to run there (node agent), replicas don't
+  taintToleration: "node-role.kubernetes.io/quorum-only=true:NoSchedule"
 
 longhornManager:
   tolerations:
     - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
+    - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
 longhornDriver:
   tolerations:
     - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
+    - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
 longhornUI:
   replicas: 1
 

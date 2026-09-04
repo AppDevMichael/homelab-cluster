@@ -48,26 +48,18 @@
   ansible.builtin.command: tailscale set --auto-update={{ 'true' if tailscale_auto_update else 'false' }}
   changed_when: false
 
-- name: Get Tailscale IPv4 address
-  ansible.builtin.command: tailscale ip -4
-  register: ts_ip
+- name: Tailscale identity
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
   changed_when: false
   retries: 10
   delay: 3
-  until: ts_ip.rc == 0 and ts_ip.stdout | length > 0
+  until: tailscale_status.rc == 0 and (tailscale_status.stdout | from_json).Self.TailscaleIPs | length > 0
 
-- name: Record Tailscale IP as a host fact
+- name: Record Tailscale IP + MagicDNS name as host facts
   ansible.builtin.set_fact:
-    tailscale_ip: "{{ ts_ip.stdout | trim }}"
-
-- name: Get Tailscale MagicDNS name
-  ansible.builtin.shell: tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")'
-  register: ts_dns
-  changed_when: false
-
-- name: Record Tailscale DNS name as a host fact
-  ansible.builtin.set_fact:
-    tailscale_dns: "{{ ts_dns.stdout | trim }}"
+    tailscale_ip: "{{ (tailscale_status.stdout | from_json).Self.TailscaleIPs | select('match', '^100\\.') | first }}"
+    tailscale_dns: "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
 
 - name: Show Tailscale identity
   ansible.builtin.debug:
