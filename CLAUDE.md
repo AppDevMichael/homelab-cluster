@@ -173,6 +173,16 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 6. (done) Tofu validated + applied: the root Application is a 2nd helm_release (argocd-apps); `file()` is not allowed
    in tfvars (hence git_ssh_private_key_file); backend/providers use kubeconfig-tailscale.
 7. system-upgrade Plan: `channel: v1.36` chosen to match the Ansible pin; do not use `stable` (could be lower).
+8. **Never put `node-role.kubernetes.io/*` in k3s `node-label`**: the kubelet refuses to self-apply labels in the kubernetes.io
+   namespace and the whole k3s process crash-loops (opi-3 was NotReady for 11 days after such a render, 2026-09-04→15; the
+   etcd member flapped but quorum held). Taint/label with kubectl from the k3s role instead (already the case). After any
+   template change, re-render on every node it applies to — a node left on the old render is a silent time bomb.
+9. Longhorn `taint-toleration` (quorum-only taint) shows `applied=false`: Longhorn applies it only when NO volume is attached.
+   Until then the system-managed DaemonSets (engine-image, csi-plugin) lack the toleration and won't reschedule on opi-3
+   after a reboot — harmless (no replicas there) but the Longhorn node will show as not ready. Apply in a maintenance
+   window: scale monitoring to 0 (volumes detach) → setting applies → scale back.
+10. Node rename to opi4p-N (owner request 2026-09-04, has other Orange Pis): k3s node names are immutable → per node:
+   drain, `k3s-uninstall.sh`, rename host/inventory/Tailscale, rejoin (etcd member replaced). Do opi-3 first.
 
 ## Agreed next batch (not done yet — verified against the repo 2026-09-03)
 
@@ -183,7 +193,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    LAN (plain-HTTP) ingresses for ArgoCD/Grafana. Tailscale SSH already works; only the operator/ingresses are pending.
 5. (done 2026-09-04) `make check` — also clock offset per node.
 6. (done 2026-09-04) CI: .github/workflows/lint.yml (lint + helm template + verify-repo.sh). Install the Renovate GitHub app for PRs.
-7. `roles/power` (owner asked 2026-09-02): cap CPU clocks (big cores 1.4 GHz, little 1.2 GHz), status LED off, USB
+7. (done 2026-09-04) `make reboot [LIMIT=]` rolling drain/reboot/uncordon; /var/log moved to NVMe (ramlog off).
+8. `roles/power` (owner asked 2026-09-02): cap CPU clocks (big cores 1.4 GHz, little 1.2 GHz), status LED off, USB
    controllers unbound, PCIe ASPM behind an off-by-default flag — measure first with a smart plug / inline USB-C meter.
 Later: Longhorn System Backup, Loki+Alloy logs, cert-manager/local DNS, Trivy, NetworkPolicies, UPS.
 Settled (do not reopen): opi-1/2 have 12 GB, opi-3 has 4 GB and is quorum-only; SD cards are out (SPI boot); Longhorn backups
