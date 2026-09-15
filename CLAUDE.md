@@ -38,7 +38,8 @@ kube-prometheus-stack (Grafana dashboards, SBC alerts), Tailscale operator (opti
 mise.toml                 exact CLI tool pins        .env.example → .env (git-ignored, loaded by mise)
 Makefile                  the entry points (make help)
 CLAUDE.md / README.md     this file / user docs (README has the full runbooks — keep it in sync)
-renovate.json             version bumps: argocd manager for charts, regex managers for k3s/SUC/tofu, mise manager
+renovate.json             version bumps: argocd manager for charts, regex managers for k3s/SUC/argocd-apps, mise manager —
+                          run by .github/workflows/renovate.yml (self-hosted, secret RENOVATE_TOKEN), not the hosted app
 kernel/                   custom Armbian vendor kernel (see kernel/README.md): userpatches/extensions/{k8s-storage,headless-lowpower}.sh,
                           userpatches/VERSION (26.08.0-k8s.N — bump per rebuild), debs/ (output, git-ignored), build/ (armbian/build, ignored)
 scripts/
