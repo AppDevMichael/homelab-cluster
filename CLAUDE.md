@@ -167,13 +167,12 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    The removed SD cards are the rescue disks (their own OS boots, rootdev already points at the NVMe).
 2. `roles/firstboot`: relies on Armbian allowing non-interactive root SSH with default password `1234`.
    Some builds force a password change → use `scripts/prepare-sd.sh`. Netplan interface name comes from facts.
-3. Longhorn S3 backup target (B2): worked 2026-09-03→05, then **every backup failed** (B2 daily transaction cap → AccessDenied;
-   polling now hourly). Grafana's volume has never been backed up. Owner must raise the cap; then re-test a restore
-   (`make restore-volumes` DRY_RUN=1). restic path verified 2026-09-15: fresh nightly snapshots, `restic check` clean,
-   full restore of opi-1's snapshot byte-identical to the live etcd snapshots. (CIFS to the Storage Box is
-   impossible from home: the ISP drops port 445 at its edge, verified with TCP traceroute 2026-09-02.)
-4. `scripts/restore-longhorn-volumes.sh`: mimics Longhorn UI "create PV/PVC"; field names from BackupVolume
-   status (`KubernetesStatus`, `lastBackupName`) need confirming against 1.12. `DRY_RUN=1` first.
+3. (verified 2026-09-15) Longhorn → B2: after the owner raised Backblaze's Class C transaction cap, backups complete again
+   (Alertmanager 92 MB; Prometheus/Grafana followed). Restore test: Alertmanager's backup restored into a fresh encrypted
+   volume, mounted in a scratch pod, ext4 + alertmanager-db present. Lesson: 5-min target polling trips the free cap.
+4. (verified 2026-09-15) `scripts/restore-longhorn-volumes.sh` field names are right for Longhorn 1.12 (`BackupVolume
+   .status.labels.KubernetesStatus`, `.status.lastBackupName`); the manifest shape it emits is what the restore test used.
+   Still untested as a full DR run (it recreates PV/PVCs under the ORIGINAL names — never run it on the live cluster).
 5. (done 2026-09-03) all charts `helm template` clean and deployed; Longhorn manager can lose a startup race on the
    `guaranteed-instance-manager-cpu` setting and crash-loop once on one node — it self-heals on restart.
 6. (done) Tofu validated + applied: the root Application is a 2nd helm_release (argocd-apps); `file()` is not allowed
