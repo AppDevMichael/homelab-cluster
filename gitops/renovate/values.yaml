@@ -1,0 +1,26 @@
+# renovatebot/renovate — self-hosted Renovate as a CronJob on the cluster (no third-party GitHub App).
+# Repo-side rules live in renovate.json at the repo root; this is the runner config. PRs it opens are validated
+# by .github/workflows/lint.yml. The GitHub token comes from the `renovate-token` Secret (Tofu, key RENOVATE_TOKEN).
+cronjob:
+  schedule: "17 6 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+existingSecret: renovate-token
+renovate:
+  config: |
+    {
+      "platform": "github",
+      "repositories": ["AppDevMichael/homelab-cluster"],
+      "autodiscover": false,
+      "onboarding": false,
+      "requireConfig": "required",
+      "persistRepoData": true
+    }
+  persistence:
+    cache:
+      enabled: true              # SQLite package cache between runs; makes daily runs cheap on the registries
+      storageClass: longhorn-encrypted
+      storageSize: 1Gi
+resources:
+  requests: { cpu: 200m, memory: 512Mi }
+  limits:   { memory: 1536Mi }   # Renovate is a Node app; helm/datasource lookups peak around 1 GB

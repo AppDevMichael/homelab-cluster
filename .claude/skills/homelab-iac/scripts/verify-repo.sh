@@ -60,7 +60,7 @@ for t in $(sed -n '/^\[tools\]/,/^\[/p' mise.toml | grep -oE '^"?(pipx:)?[a-z0-9
   echo "$invoked" | grep -qx "$i" || bad "mise.toml installs '$t' but nothing invokes it"; done
 
 echo "== secret names consistent"
-for n in grafana-admin operator-oauth longhorn-crypto longhorn-backup-s3; do
+for n in grafana-admin operator-oauth longhorn-crypto longhorn-backup-s3 renovate-token; do
   grep -q "\"$n\"" tofu/*.tf || bad "secret $n not created in tofu"; grep -rq "$n" gitops || bad "secret $n not referenced in gitops"; done
 grep -rq 'longhorn-backup-cifs\|CIFS_' tofu gitops && bad "CIFS remnants (backups are S3)"
 

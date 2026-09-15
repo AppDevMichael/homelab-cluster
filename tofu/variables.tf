@@ -67,3 +67,11 @@ variable "longhorn_s3_secret_key" {
   type      = string
   sensitive = true
 }
+
+# ---- Renovate (self-hosted) ----
+variable "renovate_github_token" {
+  description = "Fine-grained GitHub PAT for this repo only (Contents RW, Pull requests RW, Issues RW, Workflows RW). Empty = Renovate not deployed."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

@@ -302,5 +302,5 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 | Backblaze B2 | https://secure.backblaze.com/b2_buckets.htm — bucket `mico-lab` | Longhorn volume backups |
 | Hetzner Storage Box | https://console.hetzner.com — sub-account `u656965-sub1`, SFTP port 23 | restic (etcd + laptop config) |
 | GitHub repo | https://github.com/AppDevMichael/homelab-cluster | CI: Actions → lint |
-| Renovate (self-hosted) | Actions → renovate (daily 06:17 UTC, or Run workflow); Dependency Dashboard issue in the repo | version bumps as PRs, validated by CI; token = repo secret `RENOVATE_TOKEN` |
+| Renovate (self-hosted, on the cluster) | CronJob in ns `renovate`, daily 06:17 UTC; Dependency Dashboard issue in the repo | version bumps as PRs, validated by CI; token = `renovate_github_token` in tfvars |
 | Docs | `docs/bootstrap-walkthrough.md`, `CLAUDE.md`, `kernel/README.md` | |

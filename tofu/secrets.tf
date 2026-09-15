@@ -48,3 +48,22 @@ resource "kubernetes_secret_v1" "tailscale_oauth" {
     client_secret = var.tailscale_oauth_client_secret
   }
 }
+
+# Renovate (self-hosted CronJob, gitops/renovate) opens PRs on this repo with a fine-grained GitHub token.
+resource "kubernetes_namespace_v1" "renovate" {
+  count = var.renovate_github_token != "" ? 1 : 0
+  metadata {
+    name = "renovate"
+  }
+}
+
+resource "kubernetes_secret_v1" "renovate_token" {
+  count = var.renovate_github_token != "" ? 1 : 0
+  metadata {
+    name      = "renovate-token"
+    namespace = kubernetes_namespace_v1.renovate[0].metadata[0].name
+  }
+  data = {
+    RENOVATE_TOKEN = var.renovate_github_token
+  }
+}

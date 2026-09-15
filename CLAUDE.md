@@ -39,7 +39,7 @@ mise.toml                 exact CLI tool pins        .env.example → .env (git-
 Makefile                  the entry points (make help)
 CLAUDE.md / README.md     this file / user docs (README has the full runbooks — keep it in sync)
 renovate.json             version bumps: argocd manager for charts, regex managers for k3s/SUC/argocd-apps, mise manager —
-                          run by .github/workflows/renovate.yml (self-hosted, secret RENOVATE_TOKEN), not the hosted app
+                          run by Renovate ON THE CLUSTER (gitops/renovate CronJob, token via tofu renovate_github_token), no GitHub App/Action
 kernel/                   custom Armbian vendor kernel (see kernel/README.md): userpatches/extensions/{k8s-storage,headless-lowpower}.sh,
                           userpatches/VERSION (26.08.0-k8s.N — bump per rebuild), debs/ (output, git-ignored), build/ (armbian/build, ignored)
 scripts/
@@ -82,7 +82,7 @@ tofu/
   providers.tf  no config_path: kubeconfig comes from KUBE_CONFIG_PATH (mise → kubeconfig-tailscale); same for the backend
 gitops/
   bootstrap/    Helm chart of Applications. values.yaml: repo url/revision + toggles (tailscale, monitoring)
-                templates/: root, argocd(-10), longhorn(-3), tailscale(-5), monitoring(0), kured(5), system-upgrade(5)
+                templates/: root, argocd(-10), longhorn(-3), tailscale(-5), monitoring(0), kured(5), system-upgrade(5), renovate(5)
                 _helpers.tpl: shared syncPolicy (automated prune+selfHeal, ServerSideApply, retry)
   argocd/       values (insecure behind ingress, dex/notifications/appset off, small resources)
   longhorn/     values (defaultBackupStore s3://<bucket>@<region>/opi-k8s/longhorn/ — B2; nodeDownPodDeletionPolicy, preUpgradeChecker off) + manifests/
@@ -93,6 +93,7 @@ gitops/
                 for grafana, argocd, longhorn UI)
   system-upgrade/  kustomization pulling SUC v0.18.0 release manifests + Plan (channel v1.36, concurrency 1)
   kured/        values (03:00–05:00 UTC window, lock, ServiceMonitor) + manifests/namespace (privileged)
+  renovate/     values: self-hosted Renovate CronJob (chart 46.300.2), runner config inline, token from Secret renovate-token
 ```
 
 ## Pinned versions (all GA, verified 2026-09-01)
@@ -193,7 +194,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 4. Tailscale operator on (`gitops/bootstrap/values.yaml` tailscale.enabled + OAuth client in tfvars), then turn off the
    LAN (plain-HTTP) ingresses for ArgoCD/Grafana. Tailscale SSH already works; only the operator/ingresses are pending.
 5. (done 2026-09-04) `make check` — also clock offset per node.
-6. (done 2026-09-04/15) CI: lint.yml on every PR; renovate.yml runs Renovate self-hosted daily (owner wants no third-party apps; needs repo secret RENOVATE_TOKEN).
+6. (done 2026-09-15) CI: lint.yml on every PR; Renovate runs as a CronJob on the cluster (gitops/renovate) — owner wants
+   as few outside services as possible; only GitHub (the repo) remains. Needs renovate_github_token in tfvars + `make argocd`.
 7. (done 2026-09-04) `make reboot [LIMIT=]` rolling drain/reboot/uncordon; /var/log moved to NVMe (ramlog off).
 8. `roles/power` (owner asked 2026-09-02): cap CPU clocks (big cores 1.4 GHz, little 1.2 GHz), status LED off, USB
    controllers unbound, PCIe ASPM behind an off-by-default flag — measure first with a smart plug / inline USB-C meter.

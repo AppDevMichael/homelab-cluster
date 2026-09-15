@@ -8,3 +8,6 @@ tailscale:
 # Set monitoring.enabled=false during disaster recovery until volumes are restored (see README → Recreate from backup).
 monitoring:
   enabled: true
+# Renovate needs the renovate-token Secret first: fill renovate_github_token in tfvars, `make argocd`, then flip this.
+renovate:
+  enabled: false
