@@ -14,7 +14,8 @@ renovate:
       "autodiscover": false,
       "onboarding": false,
       "requireConfig": "required",
-      "persistRepoData": true
+      "persistRepoData": true,
+      "gitAuthor": "Renovate <renovate@mico.ie>"
     }
   persistence:
     cache:
