@@ -50,6 +50,13 @@
   ],
   "packageRules": [
     {
+      "description": "Renovate must not bump itself (owner updates the chart pin by hand)",
+      "matchDepNames": [
+        "renovate"
+      ],
+      "enabled": false
+    },
+    {
       "matchDepNames": [
         "kube-prometheus-stack"
       ],

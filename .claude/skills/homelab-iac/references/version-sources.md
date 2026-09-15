@@ -12,6 +12,7 @@
 | k3s | `ansible/group_vars/all.yml` | https://github.com/k3s-io/k3s/releases | k3s marks new tags Pre-release for ~a week; wait for GA. Keep the SUC Plan channel on the same minor. |
 | argo-cd chart | `gitops/bootstrap/templates/argocd.yaml` (Tofu derives it from there) | https://github.com/argoproj/argo-helm/releases (`argo-cd-X.Y.Z`) | Chart ≠ app version; app version is `appVersion` in Chart.yaml. |
 | argocd-apps chart | `tofu/variables.tf` (`argocd_apps_chart_version`) | https://github.com/argoproj/argo-helm/releases (`argocd-apps-X.Y.Z`) | Seeds the root Application. |
+| renovate chart | `gitops/bootstrap/templates/renovate.yaml` | https://docs.renovatebot.com/helm-charts/index.yaml — the INDEX, not GitHub tags (the index lags tags) | Renovate is excluded from bumping itself (renovate.json); update this pin by hand. |
 | kube-prometheus-stack | `gitops/bootstrap/templates/monitoring.yaml` | https://github.com/prometheus-community/helm-charts/releases | Major bumps often change CRDs — read upgrade notes; `crds.upgradeJob` is on. |
 | longhorn | `gitops/bootstrap/templates/longhorn.yaml` | https://github.com/longhorn/longhorn/releases | Chart version = app version. Upgrade one minor at a time (Longhorn requirement). |
 | tailscale-operator | `gitops/bootstrap/templates/tailscale.yaml` | https://pkgs.tailscale.com/helmcharts/index.yaml | Chart version = Tailscale release; check tailscale.com/changelog for "stable". |

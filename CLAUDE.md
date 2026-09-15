@@ -93,7 +93,8 @@ gitops/
                 for grafana, argocd, longhorn UI)
   system-upgrade/  kustomization pulling SUC v0.18.0 release manifests + Plan (channel v1.36, concurrency 1)
   kured/        values (03:00–05:00 UTC window, lock, ServiceMonitor) + manifests/namespace (privileged)
-  renovate/     values: self-hosted Renovate CronJob (chart 46.300.2), runner config inline, token from Secret renovate-token
+  renovate/     values: self-hosted Renovate CronJob (chart 46.300.2), runner config inline, token from Secret renovate-token;
+                Renovate is NOT allowed to bump itself (renovate.json packageRule) — owner updates that pin by hand from the chart INDEX
 ```
 
 ## Pinned versions (all GA, verified 2026-09-01)
