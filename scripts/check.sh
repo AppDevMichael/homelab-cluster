@@ -18,8 +18,14 @@ badapps=$(awk '$2!="Synced" || $3!="Healthy"' <<< "$apps"); [[ -z $badapps ]] &&
 echo "pods"
 stuck=$(kubectl get pods -A --no-headers | awk '$4!="Running" && $4!="Completed" {print $1"/"$2"="$4}')
 [[ -z $stuck ]] && ok "all pods Running/Completed" || bad "$(tr '\n' ' ' <<< "$stuck")"
-restarting=$(kubectl get pods -A --no-headers | awk '$5>5 {print $1"/"$2"("$5")"}')
-[[ -z $restarting ]] && ok "no pod with >5 restarts" || bad "restart loops: $(tr '\n' ' ' <<< "$restarting")"
+# a restart loop = a container that terminated in the last hour; lifetime counts survive reboots and are noise
+restarting=$(kubectl get pods -A -o json | python3 -c 'import sys,json,datetime as d
+now=d.datetime.now(d.timezone.utc)
+for p in json.load(sys.stdin)["items"]:
+    for c in p["status"].get("containerStatuses",[]):
+        t=(c.get("lastState",{}).get("terminated") or {}).get("finishedAt")
+        if t and (now-d.datetime.fromisoformat(t.replace("Z","+00:00"))).total_seconds()<3600 and c["restartCount"]>1: print(f"{p[\"metadata\"][\"namespace\"]}/{p[\"metadata\"][\"name\"]}({c[\"restartCount\"]})")')
+[[ -z $restarting ]] && ok "no container restarted in the last hour" || bad "restarting: $(tr '\n' ' ' <<< "$restarting")"
 
 echo "longhorn"
 vols=$(kubectl -n longhorn-system get volumes.longhorn.io --no-headers 2>/dev/null || true)

@@ -13,7 +13,7 @@ defaultBackupStore:
   # longhorn-backup-s3 Secret (Tofu). Not the Storage Box: it only does SFTP/SMB and our ISP blocks SMB (445).
   backupTarget: s3://mico-lab@eu-central-003/opi-k8s/longhorn/
   backupTargetCredentialSecret: longhorn-backup-s3
-  pollInterval: 300
+  pollInterval: 3600   # B2 charges per API call and has a daily transaction cap; backups are daily, 5-min polling tripped it
 
 defaultSettings:
   defaultReplicaCount: 2
