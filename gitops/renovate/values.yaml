@@ -5,8 +5,6 @@ cronjob:
   schedule: "17 6 * * *"
   timeZone: Etc/UTC
   concurrencyPolicy: Forbid
-image:
-  tag: "44.93.4"   # latest GA Renovate; the chart's own appVersion lags the Helm index by a release or two — Renovate bumps both
 existingSecret: renovate-token
 renovate:
   config: |
