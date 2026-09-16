@@ -1,0 +1,50 @@
+---
+# smartctl_exporter on the host (no stable arm64 container image exists; the GitHub release ships linux-arm64).
+# Prometheus scrapes <node>:9633 via additionalScrapeConfigs (gitops/monitoring/values.yaml).
+- name: Install smartmontools
+  ansible.builtin.apt:
+    name: smartmontools
+    state: present
+
+- name: Download smartctl_exporter {{ smartctl_exporter_version }} (checksum from the release's sha256sums.txt)
+  ansible.builtin.get_url:
+    url: "{{ smartctl_release }}/smartctl_exporter-{{ smartctl_exporter_version }}.linux-arm64.tar.gz"
+    dest: "/usr/local/src/smartctl_exporter-{{ smartctl_exporter_version }}.linux-arm64.tar.gz"
+    checksum: "sha256:{{ smartctl_release }}/sha256sums.txt"
+    mode: "0644"
+  vars:
+    smartctl_release: "https://github.com/prometheus-community/smartctl_exporter/releases/download/v{{ smartctl_exporter_version }}"
+  register: smartctl_tarball
+
+- name: Unpack into a versioned directory (the unit points at it; a version bump re-renders the unit and restarts)
+  ansible.builtin.unarchive:
+    src: "{{ smartctl_tarball.dest }}"
+    dest: /opt
+    remote_src: true
+    creates: "/opt/smartctl_exporter-{{ smartctl_exporter_version }}.linux-arm64/smartctl_exporter"
+
+- name: Systemd unit
+  ansible.builtin.template:
+    src: smartctl_exporter.service.j2
+    dest: /etc/systemd/system/smartctl_exporter.service
+    mode: "0644"
+  notify: Restart smartctl_exporter
+
+- name: Enable and start smartctl_exporter
+  ansible.builtin.systemd_service:
+    name: smartctl_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Check the exporter answers with SMART data
+  ansible.builtin.uri:
+    url: http://127.0.0.1:9633/metrics
+    return_content: true
+  register: smartctl_metrics
+  retries: 5
+  delay: 3
+  until: smartctl_metrics.status == 200 and 'smartctl_device_smart_status' in smartctl_metrics.content

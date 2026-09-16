@@ -1,0 +1,8 @@
+---
+# smartctl_exporter on every node (also part of site.yml). Runs fine from the laptop over Tailscale:
+#   cd ansible && ansible-playbook smartctl.yml -i opi4p-1,opi4p-2,opi4p-3 -u ops
+- name: Smartctl exporter on every node
+  hosts: all
+  become: true
+  roles:
+    - smartctl

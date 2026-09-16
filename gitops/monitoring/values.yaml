@@ -101,6 +101,12 @@ prometheus:
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
+    additionalScrapeConfigs:          # host-level exporters (ansible/roles/smartctl)
+      - job_name: smartctl
+        static_configs:
+          - { targets: ["192.168.69.101:9633"], labels: { node: opi4p-1 } }
+          - { targets: ["192.168.69.102:9633"], labels: { node: opi4p-2 } }
+          - { targets: ["192.168.69.103:9633"], labels: { node: opi4p-3 } }
     resources:
       requests: { cpu: 400m, memory: 2Gi }
       limits:   { memory: 4Gi }   # was at 863Mi of 1Gi after 4h; nodes have 12 GB

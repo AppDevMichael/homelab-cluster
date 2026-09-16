@@ -34,6 +34,9 @@ nvme_spi_boot: true                  # u-boot in the SPI NOR + /boot on the NVMe
 kernel_custom_enabled: true
 kernel_headless: true                # no HDMI/audio/Wi-Fi/BT/camera drivers (lower idle power; SSH/serial only)
 
+# ---- smartctl_exporter (roles/smartctl): https://github.com/prometheus-community/smartctl_exporter/releases ----
+smartctl_exporter_version: "0.14.0"
+
 # ---- OS ----------------------------------------------------------------
 timezone: "Etc/UTC"
 base_packages:

@@ -66,3 +66,29 @@ spec:
           labels: { severity: warning }
           annotations:
             summary: "ArgoCD app {{ $labels.name }} is {{ $labels.health_status }} for 15m (https://argocd.h.mico.ie)"
+    - name: smart
+      rules:
+        - alert: NVMeSmartFailed
+          expr: smartctl_device_smart_status != 1
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.node }}: NVMe SMART overall status FAILED"
+        - alert: NVMeCriticalWarning
+          expr: smartctl_device_critical_warning != 0 or smartctl_device_media_errors > 0
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.node }}: NVMe reports a critical warning or media errors"
+        - alert: NVMeSpareLow
+          expr: smartctl_device_available_spare < smartctl_device_available_spare_threshold
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.node }}: NVMe available spare below its threshold"
+        - alert: NVMeTemperatureHigh
+          expr: smartctl_device_temperature{temperature_type="current"} > 65
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.node }}: NVMe at {{ $value | printf \"%.0f\" }}°C"

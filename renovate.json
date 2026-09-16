@@ -27,6 +27,18 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/^ansible/group_vars/all\\.yml$/"
+      ],
+      "matchStrings": [
+        "smartctl_exporter_version:\\s*\"(?<currentValue>[\\d.]+)\""
+      ],
+      "depNameTemplate": "prometheus-community/smartctl_exporter",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
         "/^gitops/system-upgrade/kustomization\\.yaml$/"
       ],
       "matchStrings": [
