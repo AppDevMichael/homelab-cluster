@@ -28,13 +28,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
-  # The operator injects its own CA into these; don't flag it as drift.
-  ignoreDifferences:
-    - group: admissionregistration.k8s.io
-      kind: MutatingWebhookConfiguration
-      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
-    - group: admissionregistration.k8s.io
-      kind: ValidatingWebhookConfiguration
-      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+  {{- include "bootstrap.ignoreWebhookCA" . | nindent 2 }}
   {{- include "bootstrap.syncPolicy" . | nindent 2 }}
 {{- end }}

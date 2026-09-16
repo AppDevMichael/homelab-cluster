@@ -20,14 +20,20 @@ jobs:
         run: cd tofu && tofu fmt -check -recursive && tofu init -backend=false -input=false && tofu validate
       - name: helm lint bootstrap chart
         run: helm lint gitops/bootstrap
-      - name: helm template every app with its values
+      - name: helm template every app with its values (list derived from the bootstrap render)
         run: |
-          t() { helm template "$1" "$2" --repo "$3" --version "$4" -f "$5" -n "$6" >/dev/null && echo "ok $1"; }
-          t argocd argo-cd https://argoproj.github.io/argo-helm 10.4.2 gitops/argocd/values.yaml argocd
-          t longhorn longhorn https://charts.longhorn.io 1.12.0 gitops/longhorn/values.yaml longhorn-system
-          t monitoring kube-prometheus-stack https://prometheus-community.github.io/helm-charts 88.3.0 gitops/monitoring/values.yaml monitoring
-          t kured kured https://kubereboot.github.io/charts 6.0.0 gitops/kured/values.yaml kured
-          t tailscale tailscale-operator https://pkgs.tailscale.com/helmcharts 1.102.3 gitops/tailscale/values.yaml tailscale
+          set -o pipefail
+          helm template gitops/bootstrap | python3 -c '
+          import sys, yaml
+          for a in yaml.safe_load_all(sys.stdin):
+              for s in a["spec"].get("sources", []):
+                  if "chart" in s:
+                      print(a["metadata"]["name"], s["chart"], s["repoURL"], s["targetRevision"],
+                            s["helm"]["valueFiles"][0].replace("$values/", ""), a["spec"]["destination"]["namespace"])' |
+          while read -r name chart repo ver values ns; do
+            case $repo in *://*) src="$chart --repo $repo";; *) src="oci://$repo/$chart";; esac   # OCI charts have no scheme in ArgoCD
+            helm template "$name" $src --version "$ver" -f "$values" -n "$ns" >/dev/null && echo "ok $name" || { echo "FAIL $name"; exit 1; }
+          done
       - name: kustomize build system-upgrade
         run: kustomize build gitops/system-upgrade >/dev/null
       - name: repo verification sweep

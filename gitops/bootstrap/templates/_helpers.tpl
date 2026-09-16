@@ -16,3 +16,14 @@ syncPolicy:
     - RespectIgnoreDifferences=true
     - ApplyOutOfSyncOnly=true
 {{- end -}}
+
+{{/* Charts whose operator injects a CA into its own webhooks: not drift */}}
+{{- define "bootstrap.ignoreWebhookCA" -}}
+ignoreDifferences:
+  - group: admissionregistration.k8s.io
+    kind: MutatingWebhookConfiguration
+    jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+  - group: admissionregistration.k8s.io
+    kind: ValidatingWebhookConfiguration
+    jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+{{- end -}}

@@ -15,9 +15,9 @@ grafana:
     passwordKey: admin-password
   defaultDashboardsTimezone: browser
   # Light monitoring parts live on the quorum-only node; Prometheus (1.7 GB) does not fit there next to etcd.
-  tolerations:
+  tolerations: &quorumTol
     - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
-  affinity:             # prefer the quorum-only node (opi4p-3, 4 GB, otherwise idle); falls back to a data node if it is down
+  affinity: &quorumAff  # prefer the quorum-only node (opi4p-3, 4 GB, otherwise idle); falls back to a data node if it is down
     nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
         - weight: 100
@@ -111,15 +111,8 @@ alertmanager:
     resources:
       requests: { cpu: 20m, memory: 64Mi }
       limits:   { memory: 128Mi }
-    tolerations:
-      - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
-    affinity:             # prefer the quorum-only node (see grafana.affinity)
-      nodeAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            preference:
-              matchExpressions:
-                - { key: node-role.kubernetes.io/quorum-only, operator: In, values: ["true"] }
+    tolerations: *quorumTol
+    affinity: *quorumAff   # see grafana
 
 prometheus-node-exporter:
   tolerations:            # opi4p-3 is tainted quorum-only; still export its metrics
@@ -134,28 +127,14 @@ kube-state-metrics:
   resources:
     requests: { cpu: 20m, memory: 64Mi }
     limits:   { memory: 128Mi }
-  tolerations:
-    - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
-  affinity:             # prefer the quorum-only node (see grafana.affinity)
-    nodeAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          preference:
-            matchExpressions:
-              - { key: node-role.kubernetes.io/quorum-only, operator: In, values: ["true"] }
+  tolerations: *quorumTol
+  affinity: *quorumAff   # see grafana
 prometheusOperator:
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits:   { memory: 256Mi }
-  tolerations:
-    - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
-  affinity:             # prefer the quorum-only node (see grafana.affinity)
-    nodeAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          preference:
-            matchExpressions:
-              - { key: node-role.kubernetes.io/quorum-only, operator: In, values: ["true"] }
+  tolerations: *quorumTol
+  affinity: *quorumAff   # see grafana
 
 # k3s control plane — all three nodes are servers. Ansible sets bind-address=0.0.0.0 for these.
 kubeControllerManager:

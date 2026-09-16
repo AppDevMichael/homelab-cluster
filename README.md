@@ -130,7 +130,7 @@ Every play and role, what it changes, how to verify it, the reboot points, and t
 
 What the first play does to each board, in order:
 
-1. Logs in as `root` with Armbian's default password (`1234`; override with `ARMBIAN_ROOT_PASSWORD`), or your key if you pre-seeded the card with `scripts/prepare-sd.sh`.
+1. Logs in as `root` with Armbian's default password (`1234`; override with `ARMBIAN_ROOT_PASSWORD`), or your key if you pre-seeded it into `/root/.ssh/authorized_keys` on the card.
 2. Removes the first-login wizard, installs your SSH key, replaces the default root password with a random one (saved to `ansible/secrets/root_password_<node>` for console use), sets the locale.
 3. Writes a netplan static config and jumps to the inventory IP.
 4. **Moves the OS to NVMe**: partitions, formats, rsyncs the root filesystem, points the SD's `armbianEnv.txt` at the NVMe root, reboots. `/boot` stays on the SD (bind-mounted) so u-boot and kernel updates keep working, and the SD's original OS remains as a fallback (`/boot/ROLLBACK.txt` says how). Refuses to touch an NVMe that already has partitions unless `nvme_wipe: true`.
@@ -275,7 +275,7 @@ Tofu state needs no copying: `tofu init` finds it in the cluster. If two people/
 | Bump ArgoCD | edit `gitops/bootstrap/templates/argocd.yaml`; ArgoCD upgrades itself. Also update `tofu/variables.tf` so a fresh bootstrap matches |
 | Rotate Grafana password | change in tfvars, `make argocd`, restart the grafana pod |
 | Nuke a node | `ssh <node> /usr/local/bin/k3s-uninstall.sh`, `make bootstrap` |
-| Rename a node | rename it in `hosts.yml`, keep `old_node_name: <old>` on it, `cd ansible && ansible-playbook rename-node.yml -l <new>` (one node at a time, quorum node first); then delete `old_node_name` |
+| Rename a node | k3s node names are immutable: `git show ec92175:ansible/rename-node.yml` is the play that did opi-N → opi4p-N (drain, uninstall, rename, rejoin) |
 | Change the CPU clock caps | `power_cpu_max_khz` in `group_vars/all.yml`, `make bootstrap` (roles/power, applied live, no reboot) |
 | Remove everything in-cluster | `make destroy` (ArgoCD finalizers cascade-delete the apps; Longhorn data stays on disk and on the Storage Box) |
 | Rotate the backup key | not in place — new SSH key → new key → re-encrypt: new StorageClass secret, migrate volumes (Longhorn docs), `restic key add` |

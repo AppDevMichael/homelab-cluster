@@ -28,13 +28,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
-  # cainjector writes the CA into the webhook; not drift.
-  ignoreDifferences:
-    - group: admissionregistration.k8s.io
-      kind: MutatingWebhookConfiguration
-      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
-    - group: admissionregistration.k8s.io
-      kind: ValidatingWebhookConfiguration
-      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+  {{- include "bootstrap.ignoreWebhookCA" . | nindent 2 }}
   {{- include "bootstrap.syncPolicy" . | nindent 2 }}
 {{- end }}

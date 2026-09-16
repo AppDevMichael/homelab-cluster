@@ -48,7 +48,6 @@ scripts/
                           signs with $BACKUP_SSH_PUBKEY (set in .env) or ~/.ssh/id_ed25519.pub; pick once, never change
   backup-config.sh        restic (SFTP:23) of tfvars/lockfile/kubeconfigs/.env/storagebox key  ← laptop side
   restore-longhorn-volumes.sh   DR: recreate Volume + PV + PVC from latest Longhorn backups
-  prepare-sd.sh           optional Linux-only: seed SSH key onto a fresh SD (avoids root/1234 login)
 ansible/
   site.yml                plays in order: firstboot(+nvme) → kernel,common,power,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
                           roles/hardening ends with set_fact ansible_user=hardening_admin_user (root SSH is off by then); firstboot uses root only when firstboot_ip is set
@@ -57,7 +56,6 @@ ansible/
                           upgrade-os and roles/kernel)
   kernel.yml              rolling custom-kernel install (`make kernel-install [LIMIT=opi4p-2]`), drains only if k3s present
   spi-boot.yml            `make spi-boot [LIMIT=opi4p-2]`: apply roles/nvme/tasks/spi.yml one node at a time (then remove SD cards)
-  rename-node.yml         rename a node (k3s names are immutable): keep `old_node_name` on the inventory host, `-l <new>`, one at a time
   inventory/hosts.yml     ansible_host = target static IP, firstboot_ip = first-boot DHCP IP (remove after)
   group_vars/all.yml      ALL tunables: versions, CIDRs, static IP, NVMe, hardening, updates, backups
   roles/
@@ -178,7 +176,7 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 1. `roles/nvme` both stages verified 2026-09-02: all three boards boot from SPI with NO SD card (root + /boot on NVMe).
    The removed SD cards are the rescue disks (their own OS boots, rootdev already points at the NVMe).
 2. `roles/firstboot`: relies on Armbian allowing non-interactive root SSH with default password `1234`.
-   Some builds force a password change → use `scripts/prepare-sd.sh`. Netplan interface name comes from facts.
+   Some builds force a password change → seed your key into /root/.ssh on the card by hand (scripts/prepare-sd.sh, deleted, is in git history). Netplan interface name comes from facts.
 3. (verified 2026-09-15) Longhorn → B2: after the owner raised Backblaze's Class C transaction cap, backups complete again
    (Alertmanager 92 MB; Prometheus/Grafana followed). Restore test: Alertmanager's backup restored into a fresh encrypted
    volume, mounted in a scratch pod, ext4 + alertmanager-db present. Lesson: 5-min target polling trips the free cap.
@@ -198,7 +196,7 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    Until then the system-managed DaemonSets (engine-image, csi-plugin) lack the toleration and won't reschedule on opi4p-3
    after a reboot — harmless (no replicas there) but the Longhorn node will show as not ready. Apply in a maintenance
    window: scale monitoring to 0 (volumes detach) → setting applies → scale back.
-10. (done 2026-09-16) Nodes renamed opi-N → opi4p-N with `ansible/rename-node.yml` (k3s node names are immutable: drain →
+10. (done 2026-09-16) Nodes renamed opi-N → opi4p-N with a one-shot play, deleted afterwards (git history: ansible/rename-node.yml; k3s node names are immutable: drain →
    k3s-uninstall → hostname/Tailscale → rejoin via a live server → restic timer). Re-runnable; when BACKUP_KEY is unset it reads
    the key from the node's /etc/restic/password. k3s-uninstall.sh bails out ("Additional k3s services") while
    k3s-backup.service exists — the play detaches the units first. Longhorn only deletes a node record that is down,
@@ -206,7 +204,7 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 11. **Drains block on Longhorn's instance-manager PDB** whenever a node holds the LAST replica of a volume — detached volumes
    count (the Renovate cache PVC had its only live replica on opi-1, 2026-09-16). Fixed by `nodeDrainPolicy:
    block-for-eviction-if-contains-last-replica` (gitops/longhorn/values.yaml): Longhorn rebuilds that replica elsewhere,
-   then lets the drain through. Applies to kured, `make reboot`, `make os-upgrade` and rename-node alike.
+   then lets the drain through. Applies to kured, `make reboot` and `make os-upgrade` alike.
 12. **Never add h.mico.ie (or any wildcard-backed domain) as a Tailscale search domain.** Tailscale pushes search domains to
    the boards, pods inherit them (ndots:5), and the `*.h.mico.ie` wildcard then answers every external short lookup
    (`acme-v02.api.letsencrypt.org.h.mico.ie` → Traefik) — cert-manager, Renovate, B2 backups all break. Happened 2026-09-16
