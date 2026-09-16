@@ -1,6 +1,6 @@
 # ---- k3s -------------------------------------------------------------
 # Check https://github.com/k3s-io/k3s/releases and bump as needed.
-k3s_version: "v1.36.4+k3s1"
+k3s_version: "v1.37.0+k3s1"
 
 # Shared cluster secret. Export K3S_TOKEN in your shell, or replace the default.
 k3s_token: "{{ lookup('env', 'K3S_TOKEN') | default('CHANGE-ME-to-a-long-random-string', true) }}"
