@@ -4,7 +4,7 @@ repo:
 
 # Toggles. Tailscale needs the operator-oauth Secret created by Tofu first.
 tailscale:
-  enabled: false
+  enabled: true
 # Set monitoring.enabled=false during disaster recovery until volumes are restored (see README → Recreate from backup).
 monitoring:
   enabled: true
