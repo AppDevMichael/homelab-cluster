@@ -90,3 +90,11 @@ variable "smtp_password" {
   default     = ""
   sensitive   = true
 }
+
+# ---- Dead man's switch: Alertmanager's always-firing Watchdog pings this URL every few minutes ----
+variable "healthchecks_ping_url" {
+  description = "healthchecks.io ping URL (https://hc-ping.com/<uuid>). Empty = Secret not created (Alertmanager mounts it: set it)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

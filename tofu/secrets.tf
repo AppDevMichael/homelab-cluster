@@ -98,3 +98,15 @@ resource "kubernetes_secret_v1" "alertmanager_smtp" {
     password = var.smtp_password
   }
 }
+
+# Watchdog → healthchecks.io: the ping URL is the credential (url_file in the Alertmanager config).
+resource "kubernetes_secret_v1" "alertmanager_healthchecks" {
+  count = var.healthchecks_ping_url != "" ? 1 : 0
+  metadata {
+    name      = "alertmanager-healthchecks"
+    namespace = kubernetes_namespace_v1.monitoring.metadata[0].name
+  }
+  data = {
+    url = var.healthchecks_ping_url
+  }
+}

@@ -116,8 +116,10 @@ alertmanager:
       group_interval: 5m
       repeat_interval: 12h
       routes:
-        - receiver: "null"                        # always firing on purpose; becomes the healthchecks.io dead man's switch
+        - receiver: healthchecks                  # Watchdog always fires: its notifications are the dead man's switch ping
           matchers: [alertname = Watchdog]
+          group_wait: 0s
+          repeat_interval: 4m                     # healthchecks.io check: period 10 min, grace 5 min
         - receiver: "null"
           matchers: [alertname = InfoInhibitor]
     receivers:
@@ -126,12 +128,16 @@ alertmanager:
         email_configs:
           - to: me@mico.ie
             send_resolved: true
+      - name: healthchecks
+        webhook_configs:
+          - url_file: /etc/alertmanager/secrets/alertmanager-healthchecks/url
+            send_resolved: false
     inhibit_rules:
       - source_matchers: [severity = critical]  # a critical silences the same warning
         target_matchers: [severity = warning]
         equal: [namespace, alertname]
   alertmanagerSpec:
-    secrets: [alertmanager-smtp]                # mounted at /etc/alertmanager/secrets/<name>/
+    secrets: [alertmanager-smtp, alertmanager-healthchecks]   # mounted at /etc/alertmanager/secrets/<name>/
     storage:
       volumeClaimTemplate:
         spec:

@@ -6,6 +6,7 @@ git_revision = "main"
 
 # grafana_admin_password = "something-strong"                 # empty = random, `make grafana-password`
 # smtp_password = "..."                                        # Alertmanager e-mail (account in gitops/monitoring/values.yaml)
+# healthchecks_ping_url = "https://hc-ping.com/<uuid>"          # dead man's switch (Watchdog alert pings it; check period 10 min, grace 5)
 
 # Custom domain for the UIs (optional): Cloudflare API token with Zone.DNS Edit + Zone.Zone Read on the domain's zone
 # cloudflare_api_token = "..."
