@@ -14,11 +14,21 @@ grafana:
     userKey: admin-user
     passwordKey: admin-password
   defaultDashboardsTimezone: browser
+  grafana.ini:
+    server:
+      root_url: https://grafana.h.mico.ie
   ingress:
     enabled: true
     ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: tailnet   # tailnet-only (gitops/traefik)
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      cert-manager.io/cluster-issuer: letsencrypt
     hosts:
-      - grafana.192.168.69.101.nip.io  # <- change
+      - grafana.h.mico.ie
+    tls:
+      - secretName: grafana-tls
+        hosts: [grafana.h.mico.ie]
   persistence:
     enabled: true
     size: 2Gi

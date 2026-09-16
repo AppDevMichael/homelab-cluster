@@ -21,9 +21,6 @@ spec:
     - repoURL: "{{ .Values.repo.url }}"
       targetRevision: "{{ .Values.repo.revision }}"
       ref: values
-    - repoURL: "{{ .Values.repo.url }}"
-      targetRevision: "{{ .Values.repo.revision }}"
-      path: gitops/tailscale/manifests
   destination:
     server: https://kubernetes.default.svc
     namespace: tailscale

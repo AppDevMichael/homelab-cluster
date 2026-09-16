@@ -5,6 +5,10 @@ repo:
 # Toggles. Tailscale needs the operator-oauth Secret created by Tofu first.
 tailscale:
   enabled: true
+# Custom domain for the UIs (https://grafana.<domain> etc.) over the tailnet: Traefik gets a tailnet LoadBalancer
+# (gitops/traefik), cert-manager issues Let's Encrypt certs via Cloudflare DNS-01 (needs the cloudflare-api-token
+# Secret: fill cloudflare_api_token in tfvars, `make argocd`). Empty = off. The literal hostnames live in each app's values.
+domain: h.mico.ie
 # Set monitoring.enabled=false during disaster recovery until volumes are restored (see README → Recreate from backup).
 monitoring:
   enabled: true

@@ -18,7 +18,9 @@ gitops/
   bootstrap/      app-of-apps Helm chart: one Application per component, versions pinned here
   argocd/         values for ArgoCD (self-managed)
   monitoring/     values + extra manifests (alerts, dashboards) for kube-prometheus-stack
-  tailscale/      values + tailnet Ingresses for the Tailscale operator
+  tailscale/      values for the Tailscale operator (tailnet LoadBalancers, kubectl API proxy)
+  cert-manager/   values + ClusterIssuer (Let's Encrypt, Cloudflare DNS-01) for the custom-domain UIs
+  traefik/        HelmChartConfig: tailnet-only Traefik entrypoint + its Tailscale LoadBalancer
   longhorn/       replicated encrypted storage, StorageClasses, recurring backup jobs
   system-upgrade/ k3s auto-upgrade Plan (patch releases of the pinned minor)
   kured/          safe rolling reboots after OS updates
@@ -39,6 +41,7 @@ CLI tools (`mise.toml`, exact pins, stable only): OpenTofu 1.12.6 · Ansible 14.
 | argo-cd chart | 10.4.2 | `gitops/bootstrap/templates/argocd.yaml` (+ `tofu/variables.tf` for first install) |
 | kube-prometheus-stack chart | 88.3.0 | `gitops/bootstrap/templates/monitoring.yaml` |
 | tailscale-operator chart | 1.102.3 | `gitops/bootstrap/templates/tailscale.yaml` |
+| cert-manager chart | v1.21.2 | `gitops/bootstrap/templates/cert-manager.yaml` |
 | kernel (Orange Pi 4 Pro) | 6.6.98 vendor, custom build `26.08.0-k8s.1` | `kernel/userpatches/VERSION`, armbian/build commit in `scripts/build-kernel.sh` |
 | system-upgrade-controller | v0.18.0 | `gitops/system-upgrade/kustomization.yaml` |
 | kured chart | 6.0.0 | `gitops/bootstrap/templates/kured.yaml` |
@@ -158,7 +161,24 @@ First sync takes a few minutes on the Pis (kube-prometheus-stack CRDs are big). 
 4. Put client id/secret in `terraform.tfvars`, `make argocd` (creates the `operator-oauth` Secret)
 5. Set `tailscale.enabled: true` in `gitops/bootstrap/values.yaml`, push
 
-Grafana and ArgoCD appear as `https://grafana.<tailnet>.ts.net` / `https://argocd.<tailnet>.ts.net` with real certs, and `tailscale configure kubeconfig tailscale-operator` gives you kubectl over the tailnet governed by Tailscale ACLs.
+`tailscale configure kubeconfig tailscale-operator` then gives you kubectl over the tailnet governed by Tailscale ACLs.
+
+### UIs on your own domain (https://grafana.h.mico.ie …)
+
+Tailscale cannot issue certificates or DNS for a domain you own, so the UIs sit behind k3s's Traefik on a **tailnet-only
+entrypoint** (`gitops/traefik`: a second Traefik port that only a Tailscale LoadBalancer forwards to — nothing on the LAN
+reaches it) with Let's Encrypt certificates from **cert-manager** via Cloudflare DNS-01 (`gitops/cert-manager`).
+
+1. Cloudflare → My Profile → API Tokens → create token: Zone.DNS **Edit** + Zone.Zone **Read**, scoped to the domain's zone.
+   Put it in `terraform.tfvars` as `cloudflare_api_token`, `make argocd` (creates the `cloudflare-api-token` Secret).
+2. `domain: h.mico.ie` in `gitops/bootstrap/values.yaml` (already set; empty turns the whole thing off), push. ArgoCD deploys
+   cert-manager, the ClusterIssuer and the Traefik tailnet entrypoint (Traefik restarts once).
+3. `kubectl -n kube-system get svc traefik-tailnet` → its `EXTERNAL-IP` is a 100.x tailnet address. In Cloudflare DNS add
+   `A  *.h.mico.ie  <that IP>`, **DNS-only** (grey cloud). A private address in public DNS is fine: only tailnet devices can reach it.
+4. Certificates appear within a minute or two: `kubectl get certificate -A`. Hostnames are literal in
+   `gitops/monitoring/values.yaml`, `gitops/argocd/values.yaml`, `gitops/longhorn/manifests/ingress.yaml`.
+
+The ACME account e-mail is in `gitops/cert-manager/manifests/clusterissuer.yaml`.
 
 ## Storage & failover
 
@@ -295,9 +315,10 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 
 | What | Where | Notes |
 |---|---|---|
-| Grafana | https://grafana.tail1b6ff6.ts.net (tailnet, anywhere) or http://grafana.192.168.69.101.nip.io (LAN, admin hosts only) | `admin` / `make grafana-password` |
-| ArgoCD | https://argocd.tail1b6ff6.ts.net or http://argocd.192.168.69.101.nip.io | `admin` / `make argocd-password` |
-| Longhorn UI | https://longhorn.tail1b6ff6.ts.net (tailnet only, no auth) | never on the LAN |
+| Grafana | https://grafana.h.mico.ie (tailnet only) | `admin` / `make grafana-password` |
+| ArgoCD | https://argocd.h.mico.ie (tailnet only) | `admin` / `make argocd-password` |
+| Longhorn UI | https://longhorn.h.mico.ie (tailnet only, no auth of its own) | never on the LAN |
+| Cloudflare DNS | https://dash.cloudflare.com — zone `mico.ie`, record `*.h.mico.ie` → Traefik's tailnet IP | DNS-only (grey cloud) |
 | Nodes (SSH) | `ssh ops@192.168.69.101` … `.103`, or `ssh ops@opi4p-1.tail1b6ff6.ts.net` (Tailscale SSH) | root SSH is off |
 | kubectl | `make nodes` / `make apps` (kubeconfig-tailscale by default) | `make check` = health summary |
 | Tailscale admin | https://login.tailscale.com/admin/machines | ACL `ssh` rule for `tag:k8s` |

@@ -49,6 +49,25 @@ resource "kubernetes_secret_v1" "tailscale_oauth" {
   }
 }
 
+# cert-manager (gitops/cert-manager) solves Let's Encrypt DNS-01 challenges with a Cloudflare token (Zone.DNS Edit).
+resource "kubernetes_namespace_v1" "cert_manager" {
+  count = var.cloudflare_api_token != "" ? 1 : 0
+  metadata {
+    name = "cert-manager"
+  }
+}
+
+resource "kubernetes_secret_v1" "cloudflare_api_token" {
+  count = var.cloudflare_api_token != "" ? 1 : 0
+  metadata {
+    name      = "cloudflare-api-token"
+    namespace = kubernetes_namespace_v1.cert_manager[0].metadata[0].name
+  }
+  data = {
+    api-token = var.cloudflare_api_token
+  }
+}
+
 # Renovate (self-hosted CronJob, gitops/renovate) opens PRs on this repo with a fine-grained GitHub token.
 resource "kubernetes_namespace_v1" "renovate" {
   count = var.renovate_github_token != "" ? 1 : 0

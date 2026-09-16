@@ -1,0 +1,17 @@
+# cert-manager: Let's Encrypt certs for the UIs on the custom domain (issuer in manifests/). Small footprint.
+crds:
+  enabled: true
+  keep: true
+startupapicheck:
+  enabled: false        # Helm-hook Job; pointless under ArgoCD's retry
+resources:
+  requests: { cpu: 10m, memory: 32Mi }
+  limits:   { memory: 128Mi }
+webhook:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits:   { memory: 64Mi }
+cainjector:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits:   { memory: 128Mi }

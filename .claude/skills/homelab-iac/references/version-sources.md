@@ -16,6 +16,7 @@
 | kube-prometheus-stack | `gitops/bootstrap/templates/monitoring.yaml` | https://github.com/prometheus-community/helm-charts/releases | Major bumps often change CRDs — read upgrade notes; `crds.upgradeJob` is on. |
 | longhorn | `gitops/bootstrap/templates/longhorn.yaml` | https://github.com/longhorn/longhorn/releases | Chart version = app version. Upgrade one minor at a time (Longhorn requirement). |
 | tailscale-operator | `gitops/bootstrap/templates/tailscale.yaml` | https://pkgs.tailscale.com/helmcharts/index.yaml | Chart version = Tailscale release; check tailscale.com/changelog for "stable". |
+| cert-manager | `gitops/bootstrap/templates/cert-manager.yaml` | https://charts.jetstack.io/index.yaml | Chart version = app version with a `v` prefix (e.g. v1.21.2); GitHub releases page marks pre-releases. |
 | kured | `gitops/bootstrap/templates/kured.yaml` | https://github.com/kubereboot/charts/releases | Chart ≠ app version. |
 | system-upgrade-controller | `gitops/system-upgrade/kustomization.yaml` | https://github.com/rancher/system-upgrade-controller/releases | Two manifest URLs (crd.yaml + controller) — bump both. |
 | hashicorp/helm, kubernetes providers | `tofu/versions.tf`, `.terraform.lock.hcl` | https://registry.opentofu.org | helm provider v3 changed syntax (`kubernetes = {}`, `set = [{}]`). |

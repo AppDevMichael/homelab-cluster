@@ -42,6 +42,13 @@ variable "tailscale_oauth_client_secret" {
   sensitive = true
 }
 
+# ---- Custom domain (cert-manager DNS-01; setting the token enables the Secret) ----
+variable "cloudflare_api_token" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
 # ---- Backups / storage ----
 variable "backup_key" {
   description = "Cluster backup passphrase — export BACKUP_KEY=$(scripts/backup-key.sh) and pass via TF_VAR_backup_key"

@@ -16,6 +16,12 @@ server:
   ingress:
     enabled: true
     ingressClassName: traefik
+    hostname: argocd.h.mico.ie
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: tailnet   # tailnet-only (gitops/traefik)
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      cert-manager.io/cluster-issuer: letsencrypt
+    tls: true            # secret argocd-server-tls, filled by cert-manager
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits:   { memory: 256Mi }

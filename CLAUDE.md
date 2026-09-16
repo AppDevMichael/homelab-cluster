@@ -78,21 +78,26 @@ tofu/
   backend.tf    kubernetes backend + OpenTofu state encryption (pbkdf2 from var.backup_key, enforced)
   argocd.tf     helm_release argo-cd (lifecycle ignore_changes: ArgoCD self-manages afterwards) + root app as a 2nd
                 helm_release of argo/argocd-apps 2.0.5 (CRDs must exist before the Application can be validated)
-  secrets.tf    ns monitoring (+grafana-admin), ns tailscale (+operator-oauth) — PSA privileged labels
+  secrets.tf    ns monitoring (+grafana-admin), ns tailscale (+operator-oauth) — PSA privileged labels; ns cert-manager
+                (+cloudflare-api-token) when cloudflare_api_token is set
   longhorn.tf   ns longhorn-system (+longhorn-crypto LUKS key, +longhorn-backup-s3: endpoint + bucket-scoped key pair)
   variables.tf  git_repo_url(+_ssh_private_key_file), backup_key, longhorn_s3_*, tailscale_oauth_*, grafana_admin_password
   providers.tf  no config_path: kubeconfig comes from KUBE_CONFIG_PATH (mise → kubeconfig-tailscale); same for the backend
 gitops/
   bootstrap/    Helm chart of Applications. values.yaml: repo url/revision + toggles (tailscale, monitoring)
-                templates/: root, argocd(-10), longhorn(-3), tailscale(-5), monitoring(0), kured(5), system-upgrade(5), renovate(5)
+                templates/: root, argocd(-10), longhorn(-3), tailscale(-5), cert-manager(-4), traefik(-4), monitoring(0), kured(5),
+                system-upgrade(5), renovate(5). `domain:` (h.mico.ie) gates cert-manager + traefik; hostnames are literal in app values
                 _helpers.tpl: shared syncPolicy (automated prune+selfHeal, ServerSideApply, retry)
   argocd/       values (insecure behind ingress, dex/notifications/appset off, small resources)
   longhorn/     values (defaultBackupStore s3://<bucket>@<region>/opi-k8s/longhorn/ — B2; nodeDownPodDeletionPolicy, preUpgradeChecker off) + manifests/
                 (StorageClass longhorn-encrypted=default with LUKS secret refs; Longhorn itself manages the plain `longhorn` class; RecurringJobs)
   monitoring/   kube-prometheus-stack values (existingSecret grafana-admin, longhorn-encrypted PVCs,
                 k3s control-plane endpoints = node IPs) + manifests/sbc-alerts.yaml (temp/disk/mem/longhorn)
-  tailscale/    operator values (oauth from secret, apiServerProxy on) + manifests/ (Ingress class tailscale
-                for grafana, argocd, longhorn UI)
+  tailscale/    operator values (oauth from secret, apiServerProxy on, proxies tagged tag:k8s)
+  cert-manager/ values + manifests/clusterissuer.yaml (Let's Encrypt prod, Cloudflare DNS-01, token Secret from Tofu)
+  traefik/      manifests/tailnet.yaml: HelmChartConfig adds Traefik entrypoint `tailnet` (8444, not in the LAN LB) +
+                Service traefik-tailnet (LoadBalancer class tailscale, hostname `h`) → UIs at https://<app>.h.mico.ie,
+                Ingress annotation router.entrypoints=tailnet makes them tailnet-only (Longhorn UI never on the LAN)
   system-upgrade/  kustomization pulling SUC v0.18.0 release manifests + Plan (channel v1.36, concurrency 1)
   kured/        values (03:00–05:00 UTC window, lock, ServiceMonitor) + manifests/namespace (privileged)
   renovate/     values: self-hosted Renovate CronJob (chart 46.300.2), runner config inline, token from Secret renovate-token;
@@ -102,7 +107,7 @@ gitops/
 ## Pinned versions (all GA, verified 2026-09-01)
 
 k3s v1.36.4+k3s1 · argo-cd chart 10.4.2 (pinned only in gitops/bootstrap/templates/argocd.yaml) · kube-prometheus-stack 88.3.0 · longhorn 1.12.0 ·
-tailscale-operator 1.102.3 · kured chart 6.0.0 · argocd-apps chart 2.0.5 · system-upgrade-controller v0.18.0 ·
+tailscale-operator 1.102.3 · cert-manager v1.21.2 · kured chart 6.0.0 · argocd-apps chart 2.0.5 · system-upgrade-controller v0.18.0 ·
 OpenTofu 1.12.6 · Ansible 14.3.1 community package (= core 2.21.3 + collections) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 ·
 hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · hashicorp/kubernetes ~>2.38
 
@@ -203,9 +208,10 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 1. Alertmanager receiver (Discord/Telegram/email) via a Tofu-created Secret + kured `notifyUrl` — alerts currently go nowhere.
 2. Dead man's switch: Alertmanager `Watchdog` → healthchecks.io.
 3. ArgoCD metrics ServiceMonitor + alert on apps not Synced/Healthy.
-4. (done 2026-09-16) Tailscale operator on: OAuth client in tfvars → `make argocd` → tailscale.enabled. Grafana/ArgoCD/Longhorn
-   answer at https://<name>.tail1b6ff6.ts.net. The LAN (plain-HTTP nip.io) ingresses for ArgoCD/Grafana are still on — turn off
-   when the owner no longer wants LAN access.
+4. (done 2026-09-16) Tailscale operator on (OAuth client in tfvars → `make argocd` → tailscale.enabled). Same day: UIs moved to
+   https://{grafana,argocd,longhorn}.h.mico.ie — Traefik tailnet-only entrypoint + cert-manager (Cloudflare DNS-01). Tailscale
+   can't do custom domains itself (its certs/MagicDNS are ts.net only). The LAN nip.io ingresses are gone. DNS: one Cloudflare
+   A record `*.h.mico.ie` → traefik-tailnet's 100.x IP (DNS-only). Needs cloudflare_api_token in tfvars.
 5. (done 2026-09-04) `make check` — also clock offset per node.
 6. (done 2026-09-15) CI: lint.yml on every PR; Renovate runs as a CronJob on the cluster (gitops/renovate) — owner wants
    as few outside services as possible; only GitHub (the repo) remains. Needs renovate_github_token in tfvars + `make argocd`.
@@ -213,7 +219,7 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 8. (done 2026-09-15) `roles/power`: tmpfiles.d caps scaling_max_freq (little 1.2 GHz, big 1.4 GHz); LED kept (owner wants the
    heartbeat). Whole rig (3 boards + a Pi + switch) idles at ~20 W on the owner's smart plug; verdict on the caps needs a
    day of post-cap history. USB unbind / PCIe ASPM not done — measure first.
-Later: Longhorn System Backup, Loki+Alloy logs, cert-manager/local DNS, Trivy, NetworkPolicies, UPS.
+Later: Longhorn System Backup, Loki+Alloy logs, Trivy, NetworkPolicies, UPS.
 Settled (do not reopen): opi4p-1/2 have 12 GB, opi4p-3 has 4 GB and is quorum-only; SD cards are out (SPI boot); Longhorn backups
 go to B2 (ISP blocks SMB); /var/log is on the NVMe (Armbian ramlog disabled); rx_dropped on end0 is VLAN/LAN noise, not loss.
 

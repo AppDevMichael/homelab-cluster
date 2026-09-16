@@ -66,4 +66,4 @@ metrics:
     enabled: true              # Longhorn dashboards land in Grafana automatically (sidecar picks up the ConfigMaps)
 
 ingress:
-  enabled: false               # UI has no auth: only reachable via the Tailscale Ingress in gitops/tailscale
+  enabled: false               # UI has no auth: manifests/ingress.yaml puts it on the tailnet-only Traefik entrypoint

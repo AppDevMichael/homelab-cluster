@@ -1,0 +1,22 @@
+{{- if .Values.domain }}
+# k3s ships Traefik; this only adds a tailnet-only entrypoint and a Tailscale LoadBalancer in front of it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: "{{ .Values.repo.url }}"
+    targetRevision: "{{ .Values.repo.revision }}"
+    path: gitops/traefik/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  {{- include "bootstrap.syncPolicy" . | nindent 2 }}
+{{- end }}

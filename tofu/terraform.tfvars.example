@@ -6,6 +6,9 @@ git_revision = "main"
 
 # grafana_admin_password = "something-strong"                 # empty = random, `make grafana-password`
 
+# Custom domain for the UIs (optional): Cloudflare API token with Zone.DNS Edit + Zone.Zone Read on the domain's zone
+# cloudflare_api_token = "..."
+
 # Tailscale operator (optional) — setting a client id enables it
 # tailscale_oauth_client_id     = "k..."
 # tailscale_oauth_client_secret = "tskey-client-..."

@@ -1,0 +1,25 @@
+# Longhorn UI has no auth of its own: tailnet-only entrypoint (Tailscale ACLs are the auth), never on the LAN.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: tailnet
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: longhorn.h.mico.ie
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: longhorn-frontend
+                port: { number: 80 }
+  tls:
+    - secretName: longhorn-tls
+      hosts: [longhorn.h.mico.ie]

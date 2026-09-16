@@ -1,0 +1,18 @@
+# Let's Encrypt via Cloudflare DNS-01: works for names that only resolve inside the tailnet (no inbound port 80 needed).
+# The token Secret is created by Tofu (cloudflare_api_token: Zone.DNS Edit + Zone.Zone Read on the domain's zone).
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: me@mico.ie
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
