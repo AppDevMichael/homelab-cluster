@@ -14,8 +14,6 @@ grafana:
     userKey: admin-user
     passwordKey: admin-password
   defaultDashboardsTimezone: browser
-  env:
-    GOMEMLIMIT: 400MiB     # Go keeps ~5x heap as idle slack otherwise (heap in use ~100Mi, RSS was 400-850Mi)
   # Light monitoring parts live on the quorum-only node; Prometheus (1.7 GB) does not fit there next to etcd.
   tolerations:
     - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
@@ -49,7 +47,8 @@ grafana:
     type: Recreate         # RWO volume: don't try to run old+new pod at once during rollouts
   resources:
     requests: { cpu: 50m, memory: 768Mi }
-    limits:   { memory: 1536Mi }   # Grafana 13 + Longhorn/k8s dashboards sat at 239Mi and got OOM-killed at 256Mi
+    limits:   { memory: 768Mi }    # the chart sets GOMEMLIMIT = this limit, so it also caps Go GC slack (heap in use ~100Mi;
+                                   # RSS was 400-850Mi at 1536Mi). 256Mi was OOM-killed once dashboards grew.
   grafana.ini:
     analytics: { check_for_updates: false, reporting_enabled: false }
     users: { default_theme: dark }
