@@ -207,6 +207,10 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    count (the Renovate cache PVC had its only live replica on opi-1, 2026-09-16). Fixed by `nodeDrainPolicy:
    block-for-eviction-if-contains-last-replica` (gitops/longhorn/values.yaml): Longhorn rebuilds that replica elsewhere,
    then lets the drain through. Applies to kured, `make reboot`, `make os-upgrade` and rename-node alike.
+12. **Never add h.mico.ie (or any wildcard-backed domain) as a Tailscale search domain.** Tailscale pushes search domains to
+   the boards, pods inherit them (ndots:5), and the `*.h.mico.ie` wildcard then answers every external short lookup
+   (`acme-v02.api.letsencrypt.org.h.mico.ie` → Traefik) — cert-manager, Renovate, B2 backups all break. Happened 2026-09-16
+   08:49–13:50 UTC; fix was removing the search domain + restarting pods created in that window.
 
 ## Agreed next batch (not done yet — verified against the repo 2026-09-03)
 

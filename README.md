@@ -184,6 +184,9 @@ reaches it) with Let's Encrypt certificates from **cert-manager** via Cloudflare
 
 The ACME account e-mail is in `gitops/cert-manager/manifests/clusterissuer.yaml`.
 
+Do **not** add `h.mico.ie` as a Tailscale *search domain*: the boards and every pod would inherit it, and the wildcard
+record would then hijack every short external lookup (Let's Encrypt, GitHub, B2). Full names only.
+
 ### Immich (photos)
 
 `gitops/immich`: the official chart (OCI, pinned) with Postgres 18 from CloudNativePG (VectorChord as an image-volume
