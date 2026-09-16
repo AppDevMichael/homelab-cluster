@@ -49,7 +49,7 @@ scripts/
   backup-config.sh        restic (SFTP:23) of tfvars/lockfile/kubeconfigs/.env/storagebox key  ← laptop side
   restore-longhorn-volumes.sh   DR: recreate Volume + PV + PVC from latest Longhorn backups
 ansible/
-  site.yml                plays in order: firstboot(+nvme) → kernel,common,power,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
+  site.yml                plays in order: firstboot(+nvme) → kernel,common,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
                           roles/hardening ends with set_fact ansible_user=hardening_admin_user (root SSH is off by then); firstboot uses root only when firstboot_ip is set
   upgrade-os.yml          `make os-upgrade [LIMIT=]`: rolling apt full-upgrade with drain/reboot/uncordon
   reboot.yml              `make reboot [LIMIT=]`: rolling drain → reboot → uncordon (roles/rolling/tasks/{drain,resume}.yml, shared with
@@ -65,7 +65,6 @@ ansible/
     kernel      stage kernel/debs/*.deb, apt install + hold; drain → reboot → uncordon ONLY when the running kernel lacks
                 dm-crypt (a no-op run touches nothing); verify dm_crypt/iscsi_tcp; lowpower.yml blacklists wifi/BT/video + masks services
     common      swap off (zram), cgroup boot args, sysctls, modules (dm_crypt, iscsi_tcp), packages
-    power       tmpfiles.d caps on scaling_max_freq (group_vars power_cpu_max_khz); status LED left on (power_status_led_off)
     tailscale   apt repo, `tailscale up --ssh`, auto-update, records tailscale_ip/tailscale_dns facts
     hardening   ops user + keys, sshd drop-in, nftables (default-drop, k3s-aware), sysctls, fail2ban, journald
     updates     unattended-upgrades (security pockets), needrestart, reboot-required flag for kured
@@ -232,9 +231,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 6. (done 2026-09-15) CI: lint.yml on every PR; Renovate runs as a CronJob on the cluster (gitops/renovate) — owner wants
    as few outside services as possible; only GitHub (the repo) remains. Needs renovate_github_token in tfvars + `make argocd`.
 7. (done 2026-09-04) `make reboot [LIMIT=]` rolling drain/reboot/uncordon; /var/log moved to NVMe (ramlog off).
-8. (done 2026-09-15) `roles/power`: tmpfiles.d caps scaling_max_freq (little 1.2 GHz, big 1.4 GHz); LED kept (owner wants the
-   heartbeat). Whole rig (3 boards + a Pi + switch) idles at ~20 W on the owner's smart plug; verdict on the caps needs a
-   day of post-cap history. USB unbind / PCIe ASPM not done — measure first.
+8. (closed 2026-09-16) CPU clock caps (roles/power, tmpfiles.d on scaling_max_freq) tried for a day: little to no difference on the
+   smart plug (rig idles ~20 W either way), so removed again; boards run stock clocks. USB unbind / PCIe ASPM not tried.
 Later: Longhorn System Backup, Loki+Alloy logs, Trivy, NetworkPolicies, UPS.
 Settled (do not reopen): opi4p-1/2 have 12 GB, opi4p-3 has 4 GB and is quorum-only; SD cards are out (SPI boot); Longhorn backups
 go to B2 (ISP blocks SMB); /var/log is on the NVMe (Armbian ramlog disabled); rx_dropped on end0 is VLAN/LAN noise, not loss.

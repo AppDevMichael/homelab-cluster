@@ -18,7 +18,6 @@
   roles:
     - { role: kernel, when: kernel_custom_enabled }   # custom vendor kernel: dm-crypt/iSCSI/CIFS (+ headless)
     - common
-    - power
     - tailscale
     - hardening
     - updates

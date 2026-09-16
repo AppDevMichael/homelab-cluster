@@ -276,7 +276,6 @@ Tofu state needs no copying: `tofu init` finds it in the cluster. If two people/
 | Rotate Grafana password | change in tfvars, `make argocd`, restart the grafana pod |
 | Nuke a node | `ssh <node> /usr/local/bin/k3s-uninstall.sh`, `make bootstrap` |
 | Rename a node | k3s node names are immutable: `git show ec92175:ansible/rename-node.yml` is the play that did opi-N → opi4p-N (drain, uninstall, rename, rejoin) |
-| Change the CPU clock caps | `power_cpu_max_khz` in `group_vars/all.yml`, `make bootstrap` (roles/power, applied live, no reboot) |
 | Remove everything in-cluster | `make destroy` (ArgoCD finalizers cascade-delete the apps; Longhorn data stays on disk and on the Storage Box) |
 | Rotate the backup key | not in place — new SSH key → new key → re-encrypt: new StorageClass secret, migrate volumes (Longhorn docs), `restic key add` |
 
