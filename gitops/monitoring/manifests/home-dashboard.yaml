@@ -700,7 +700,7 @@ data:
       },
       {
        "type": "row",
-       "title": "Monitoring (Grafana / Prometheus)",
+       "title": "Monitoring stack (Prometheus / Grafana / Alertmanager / exporters)",
        "collapsed": false,
        "gridPos": {
         "x": 0,

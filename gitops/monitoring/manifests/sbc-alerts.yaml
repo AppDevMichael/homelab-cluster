@@ -52,3 +52,17 @@ spec:
           labels: { severity: warning }
           annotations:
             summary: "Longhorn volume {{ $labels.volume }} has no backup in 36h"
+    - name: argocd
+      rules:
+        - alert: ArgoCDAppNotSynced
+          expr: argocd_app_info{sync_status!="Synced"} == 1
+          for: 30m
+          labels: { severity: warning }
+          annotations:
+            summary: "ArgoCD app {{ $labels.name }} is {{ $labels.sync_status }} for 30m (https://argocd.h.mico.ie)"
+        - alert: ArgoCDAppUnhealthy
+          expr: argocd_app_info{health_status!~"Healthy|Progressing"} == 1
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "ArgoCD app {{ $labels.name }} is {{ $labels.health_status }} for 15m (https://argocd.h.mico.ie)"
