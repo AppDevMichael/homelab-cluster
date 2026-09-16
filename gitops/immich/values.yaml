@@ -10,6 +10,7 @@ controllers:
 server:
   controllers:
     main:
+      replicas: 0   # MAINTENANCE: revert
       strategy: Recreate    # RWO library volume: the old pod must release it before the new one can start
       containers:
         main:
@@ -47,6 +48,7 @@ machine-learning:
   enabled: true
   controllers:
     main:
+      replicas: 0   # MAINTENANCE: revert
       strategy: Recreate    # RWO cache volume (same reason)
       pod:
         affinity:           # the two CPU-heavy parts (server = thumbnails/transcodes, ML = CLIP/faces) on different nodes

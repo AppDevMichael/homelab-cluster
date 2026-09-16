@@ -9,6 +9,7 @@ crds:
 
 grafana:
   enabled: true
+  replicas: 0   # MAINTENANCE: revert
   admin:
     existingSecret: grafana-admin     # created by Tofu, never in git
     userKey: admin-user
@@ -93,6 +94,7 @@ prometheus:
       - secretName: prometheus-tls
         hosts: [prometheus.h.mico.ie]
   prometheusSpec:
+    replicas: 0   # MAINTENANCE: revert
     externalUrl: https://prometheus.h.mico.ie      # links in alert mails
     retention: 30d
     retentionSize: 15GB
@@ -160,6 +162,7 @@ alertmanager:
       - secretName: alertmanager-tls
         hosts: [alertmanager.h.mico.ie]
   alertmanagerSpec:
+    replicas: 0   # MAINTENANCE: revert
     externalUrl: https://alertmanager.h.mico.ie
     secrets: [alertmanager-smtp, alertmanager-healthchecks]   # mounted at /etc/alertmanager/secrets/<name>/
     storage:

@@ -7,6 +7,8 @@ kind: Cluster
 metadata:
   name: immich-database
   namespace: immich
+  annotations:
+    cnpg.io/hibernation: "on"   # MAINTENANCE: revert
 spec:
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
