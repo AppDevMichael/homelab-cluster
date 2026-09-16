@@ -46,6 +46,17 @@ machine-learning:
   enabled: true
   controllers:
     main:
+      pod:
+        affinity:           # the two CPU-heavy parts (server = thumbnails/transcodes, ML = CLIP/faces) on different nodes
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: server
+                      app.kubernetes.io/instance: immich
       containers:
         main:
           resources:
