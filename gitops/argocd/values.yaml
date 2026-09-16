@@ -12,8 +12,6 @@ configs:
       managedFieldsManagers:
         - kube-controller-manager
 
-repoServer:
-  metrics: { enabled: true, serviceMonitor: { enabled: true } }
 server:
   metrics: { enabled: true, serviceMonitor: { enabled: true } }
   ingress:
@@ -39,6 +37,17 @@ repoServer:
   resources:
     requests: { cpu: 100m, memory: 256Mi }
     limits:   { memory: 512Mi }
+  metrics: { enabled: true, serviceMonitor: { enabled: true } }
+  # manifest rendering (helm/kustomize) runs on the quorum-only node, which is otherwise idle
+  tolerations:
+    - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
+  affinity:             # prefer the quorum-only node (opi4p-3, 4 GB, otherwise idle); falls back to a data node if it is down
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - { key: node-role.kubernetes.io/quorum-only, operator: In, values: ["true"] }
 
 applicationSet:
   replicas: 0           # not used (chart 10 has no enabled toggle; 0 replicas = no pod, saves ~100Mi)
