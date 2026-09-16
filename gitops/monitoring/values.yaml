@@ -81,7 +81,19 @@ grafana:
       cloudnativepg:      { gnetId: 20417, revision: 4,  datasource: Prometheus }
 
 prometheus:
+  ingress:               # no auth of its own: tailnet-only, like Longhorn
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: tailnet
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      cert-manager.io/cluster-issuer: letsencrypt
+    hosts: [prometheus.h.mico.ie]
+    tls:
+      - secretName: prometheus-tls
+        hosts: [prometheus.h.mico.ie]
   prometheusSpec:
+    externalUrl: https://prometheus.h.mico.ie      # links in alert mails
     retention: 30d
     retentionSize: 15GB
     scrapeInterval: 30s
@@ -136,7 +148,19 @@ alertmanager:
       - source_matchers: [severity = critical]  # a critical silences the same warning
         target_matchers: [severity = warning]
         equal: [namespace, alertname]
+  ingress:               # no auth of its own: tailnet-only, like Longhorn
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: tailnet
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      cert-manager.io/cluster-issuer: letsencrypt
+    hosts: [alertmanager.h.mico.ie]
+    tls:
+      - secretName: alertmanager-tls
+        hosts: [alertmanager.h.mico.ie]
   alertmanagerSpec:
+    externalUrl: https://alertmanager.h.mico.ie
     secrets: [alertmanager-smtp, alertmanager-healthchecks]   # mounted at /etc/alertmanager/secrets/<name>/
     storage:
       volumeClaimTemplate:
