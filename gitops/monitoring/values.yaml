@@ -65,7 +65,7 @@ grafana:
 
 prometheus:
   prometheusSpec:
-    retention: 15d
+    retention: 30d
     retentionSize: 15GB
     scrapeInterval: 30s
     evaluationInterval: 30s
@@ -73,8 +73,8 @@ prometheus:
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
     resources:
-      requests: { cpu: 200m, memory: 1Gi }
-      limits:   { memory: 2560Mi }   # was at 863Mi of 1Gi after 4h; nodes have 12 GB
+      requests: { cpu: 200m, memory: 2Gi }
+      limits:   { memory: 4Gi }   # was at 863Mi of 1Gi after 4h; nodes have 12 GB
     storageSpec:
       volumeClaimTemplate:
         spec:
