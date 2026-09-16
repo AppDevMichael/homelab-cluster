@@ -8,6 +8,17 @@ configs:
     controller.diff.server.side: "true"
   cm:
     timeout.reconciliation: 180s
+    # ArgoCD 3 excludes Endpoints/EndpointSlice by default, which silently drops kube-prometheus-stack's static scrape
+    # targets for the k3s control plane (kubeScheduler.endpoints etc.). Same default list without that entry.
+    resource.exclusions: |
+      - apiGroups: [coordination.k8s.io]
+        kinds: [Lease]
+      - apiGroups: [authentication.k8s.io, authorization.k8s.io]
+        kinds: [SelfSubjectReview, TokenReview, LocalSubjectAccessReview, SelfSubjectAccessReview, SelfSubjectRulesReview, SubjectAccessReview]
+      - apiGroups: [certificates.k8s.io]
+        kinds: [CertificateSigningRequest]
+      - apiGroups: [cert-manager.io]
+        kinds: [CertificateRequest]
     resource.customizations.ignoreDifferences.all: |
       managedFieldsManagers:
         - kube-controller-manager
