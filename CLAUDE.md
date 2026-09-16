@@ -211,6 +211,11 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    the boards, pods inherit them (ndots:5), and the `*.h.mico.ie` wildcard then answers every external short lookup
    (`acme-v02.api.letsencrypt.org.h.mico.ie` → Traefik) — cert-manager, Renovate, B2 backups all break. Happened 2026-09-16
    08:49–13:50 UTC; fix was removing the search domain + restarting pods created in that window.
+13. Placement: opi4p-3 (4 GB, etcd) holds Grafana, Alertmanager, kube-state-metrics, prometheus-operator and the ArgoCD
+   repo-server (preferred nodeAffinity + quorum toleration); Prometheus (~1.7 GB) does NOT fit there. Immich ML has a
+   preferred anti-affinity against the Immich server. RWO-volume deployments must use `strategy: Recreate` (RollingUpdate
+   deadlocks on the volume). ArgoCD + ServerSideApply did not apply a RollingUpdate→Recreate change (diff showed clean,
+   live stayed RollingUpdate) — patched live once with `rollingUpdate: null`; watch for it if a chart flips strategy.
 
 ## Agreed next batch (not done yet — verified against the repo 2026-09-03)
 
