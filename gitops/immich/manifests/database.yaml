@@ -1,0 +1,45 @@
+# Postgres 18 for Immich via CloudNativePG, VectorChord loaded as an OCI image-volume extension (needs k8s ImageVolume,
+# on by default since 1.35, and containerd >= 2.1 - k3s 1.36 ships 2.3). Same shape as the chart's own example
+# (immich-charts/local/cloudnative-pg.yaml). One instance: HA comes from the Longhorn volume, not from PG replication.
+# CNPG writes the app credentials to Secret immich-database-app (host/user/password/dbname) - referenced by values.yaml.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-database
+  namespace: immich
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
+  storage:
+    size: 10Gi
+    storageClass: longhorn-encrypted
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { memory: 1Gi }
+  postgresql:
+    shared_preload_libraries:
+      - vchord.so
+    extensions:
+      - name: vchord
+        image:
+          reference: ghcr.io/tensorchord/vchord-scratch:pg18-v1.1.1
+        dynamic_library_path:
+          - /usr/lib/postgresql/18/lib
+        extension_control_path:
+          - /usr/share/postgresql/18/
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: immich-database
+  namespace: immich
+spec:
+  name: app
+  owner: app
+  cluster:
+    name: immich-database
+  extensions:
+    - { name: vector, ensure: present }
+    - { name: vchord, ensure: present }
+    - { name: earthdistance, ensure: present }
+    - { name: cube, ensure: present }

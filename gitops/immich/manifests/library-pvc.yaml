@@ -1,0 +1,13 @@
+# All photos/videos + Immich's own nightly DB dumps (backups/). Encrypted, 2 Longhorn replicas, in the daily B2 backup
+# group. Grow with `kubectl -n immich patch pvc immich-library` (Longhorn expands online).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library
+  namespace: immich
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-encrypted
+  resources:
+    requests:
+      storage: 250Gi

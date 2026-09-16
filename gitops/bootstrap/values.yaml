@@ -9,6 +9,9 @@ tailscale:
 # (gitops/traefik), cert-manager issues Let's Encrypt certs via Cloudflare DNS-01 (needs the cloudflare-api-token
 # Secret: fill cloudflare_api_token in tfvars, `make argocd`). Empty = off. The literal hostnames live in each app's values.
 domain: h.mico.ie
+# Immich (photos) + its Postgres operator (CloudNativePG). Needs `domain` for the ingress.
+immich:
+  enabled: true
 # Set monitoring.enabled=false during disaster recovery until volumes are restored (see README → Recreate from backup).
 monitoring:
   enabled: true

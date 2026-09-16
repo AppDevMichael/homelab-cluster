@@ -17,6 +17,9 @@
 | longhorn | `gitops/bootstrap/templates/longhorn.yaml` | https://github.com/longhorn/longhorn/releases | Chart version = app version. Upgrade one minor at a time (Longhorn requirement). |
 | tailscale-operator | `gitops/bootstrap/templates/tailscale.yaml` | https://pkgs.tailscale.com/helmcharts/index.yaml | Chart version = Tailscale release; check tailscale.com/changelog for "stable". |
 | cert-manager | `gitops/bootstrap/templates/cert-manager.yaml` | https://charts.jetstack.io/index.yaml | Chart version = app version with a `v` prefix (e.g. v1.21.2); GitHub releases page marks pre-releases. |
+| cloudnative-pg | `gitops/bootstrap/templates/cloudnative-pg.yaml` | https://github.com/cloudnative-pg/charts/releases | Chart tag `cloudnative-pg-v0.x.y`; appVersion in the chart's Chart.yaml. |
+| immich (chart) | `gitops/bootstrap/templates/immich.yaml` | https://github.com/immich-app/immich-charts/releases (OCI ghcr.io/immich-app/immich-charts) | Chart lags Immich; the Immich version is pinned separately. |
+| immich (app) | `gitops/immich/values.yaml` `tag:` | https://github.com/immich-app/immich/releases | Skip `-rc.N` tags; check breaking-change notes (DB extension changes). |
 | kured | `gitops/bootstrap/templates/kured.yaml` | https://github.com/kubereboot/charts/releases | Chart ≠ app version. |
 | system-upgrade-controller | `gitops/system-upgrade/kustomization.yaml` | https://github.com/rancher/system-upgrade-controller/releases | Two manifest URLs (crd.yaml + controller) — bump both. |
 | hashicorp/helm, kubernetes providers | `tofu/versions.tf`, `.terraform.lock.hcl` | https://registry.opentofu.org | helm provider v3 changed syntax (`kubernetes = {}`, `set = [{}]`). |

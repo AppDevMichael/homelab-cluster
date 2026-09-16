@@ -1,0 +1,33 @@
+{{- if .Values.immich.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    # OCI chart: no oci:// prefix in repoURL (ArgoCD convention)
+    - repoURL: ghcr.io/immich-app/immich-charts
+      chart: immich
+      targetRevision: 0.13.2
+      helm:
+        releaseName: immich
+        valueFiles:
+          - $values/gitops/immich/values.yaml
+    - repoURL: "{{ .Values.repo.url }}"
+      targetRevision: "{{ .Values.repo.revision }}"
+      ref: values
+    # library PVC, Postgres cluster + database (CloudNativePG)
+    - repoURL: "{{ .Values.repo.url }}"
+      targetRevision: "{{ .Values.repo.revision }}"
+      path: gitops/immich/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: immich
+  {{- include "bootstrap.syncPolicy" . | nindent 2 }}
+{{- end }}

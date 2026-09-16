@@ -1,0 +1,70 @@
+# Immich (photos). Chart: github.com/immich-app/immich-charts (bjw-s common library underneath).
+# Postgres comes from CloudNativePG (manifests/database.yaml) which writes the connection Secret immich-database-app.
+controllers:
+  main:
+    containers:
+      main:
+        image:
+          tag: v3.2.2   # Immich release; the chart does not track every release, so it is pinned here (Renovate: regex manager)
+
+server:
+  controllers:
+    main:
+      containers:
+        main:
+          env:
+            DB_HOSTNAME:
+              valueFrom: { secretKeyRef: { name: immich-database-app, key: host } }
+            DB_USERNAME:
+              valueFrom: { secretKeyRef: { name: immich-database-app, key: user } }
+            DB_PASSWORD:
+              valueFrom: { secretKeyRef: { name: immich-database-app, key: password } }
+            DB_DATABASE_NAME:
+              valueFrom: { secretKeyRef: { name: immich-database-app, key: dbname } }
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits:   { memory: 2Gi }
+  ingress:
+    main:
+      enabled: true
+      className: traefik
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: tailnet   # tailnet-only (gitops/traefik); Traefik has no body-size limit
+        traefik.ingress.kubernetes.io/router.tls: "true"
+        cert-manager.io/cluster-issuer: letsencrypt
+      hosts:
+        - host: immich.h.mico.ie
+          paths:
+            - path: /
+              service:
+                identifier: main
+      tls:
+        - secretName: immich-tls
+          hosts: [immich.h.mico.ie]
+
+machine-learning:
+  enabled: true
+  controllers:
+    main:
+      containers:
+        main:
+          resources:
+            requests: { cpu: 100m, memory: 512Mi }
+            limits:   { memory: 3Gi }      # CLIP + face models on CPU (arm64)
+  persistence:
+    cache:                # downloaded models; emptyDir would re-download on every restart
+      enabled: true
+      type: persistentVolumeClaim
+      size: 10Gi
+      accessMode: ReadWriteOnce
+      storageClass: longhorn-encrypted
+
+valkey:
+  enabled: true           # job queue; emptyDir is fine (queues rebuild)
+
+immich:
+  metrics:
+    enabled: true         # ServiceMonitors for kube-prometheus-stack
+  persistence:
+    library:
+      existingClaim: immich-library

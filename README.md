@@ -21,6 +21,8 @@ gitops/
   tailscale/      values for the Tailscale operator (tailnet LoadBalancers, kubectl API proxy)
   cert-manager/   values + ClusterIssuer (Let's Encrypt, Cloudflare DNS-01) for the custom-domain UIs
   traefik/        HelmChartConfig: tailnet-only Traefik entrypoint + its Tailscale LoadBalancer
+  cloudnative-pg/ values for the CloudNativePG operator (Postgres for Immich)
+  immich/         values (tailnet ingress, ML cache PVC, valkey) + manifests/ (library PVC 250Gi, CNPG Cluster + Database)
   longhorn/       replicated encrypted storage, StorageClasses, recurring backup jobs
   system-upgrade/ k3s auto-upgrade Plan (patch releases of the pinned minor)
   kured/          safe rolling reboots after OS updates
@@ -42,6 +44,8 @@ CLI tools (`mise.toml`, exact pins, stable only): OpenTofu 1.12.6 · Ansible 14.
 | kube-prometheus-stack chart | 88.3.0 | `gitops/bootstrap/templates/monitoring.yaml` |
 | tailscale-operator chart | 1.102.3 | `gitops/bootstrap/templates/tailscale.yaml` |
 | cert-manager chart | v1.21.2 | `gitops/bootstrap/templates/cert-manager.yaml` |
+| cloudnative-pg chart | 0.29.0 (operator 1.30.0) | `gitops/bootstrap/templates/cloudnative-pg.yaml` |
+| immich chart | 0.13.2 (Immich v3.2.2 pinned in `gitops/immich/values.yaml`) | `gitops/bootstrap/templates/immich.yaml` |
 | kernel (Orange Pi 4 Pro) | 6.6.98 vendor, custom build `26.08.0-k8s.1` | `kernel/userpatches/VERSION`, armbian/build commit in `scripts/build-kernel.sh` |
 | system-upgrade-controller | v0.18.0 | `gitops/system-upgrade/kustomization.yaml` |
 | kured chart | 6.0.0 | `gitops/bootstrap/templates/kured.yaml` |
@@ -179,6 +183,16 @@ reaches it) with Let's Encrypt certificates from **cert-manager** via Cloudflare
    `gitops/monitoring/values.yaml`, `gitops/argocd/values.yaml`, `gitops/longhorn/manifests/ingress.yaml`.
 
 The ACME account e-mail is in `gitops/cert-manager/manifests/clusterissuer.yaml`.
+
+### Immich (photos)
+
+`gitops/immich`: the official chart (OCI, pinned) with Postgres 18 from CloudNativePG (VectorChord as an image-volume
+extension, one instance on an encrypted Longhorn volume) and Valkey for the queue. Photos live on the `immich-library` PVC
+(250 Gi, `longhorn-encrypted`, 2 replicas, in the daily B2 backup group; Immich also dumps its DB into `backups/` on that
+volume nightly). Grow it with `kubectl -n immich patch pvc immich-library -p '{"spec":{"resources":{"requests":{"storage":"400Gi"}}}}'`.
+URL https://immich.h.mico.ie (tailnet only, also for the mobile app). Turn off with `immich.enabled: false` in
+`gitops/bootstrap/values.yaml` (PVC stays; delete it by hand if you really mean it). Bump Immich itself by changing the
+`tag:` in `gitops/immich/values.yaml` (Renovate PRs it); the chart version is in the bootstrap template.
 
 ## Storage & failover
 
@@ -318,6 +332,7 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 | Grafana | https://grafana.h.mico.ie (tailnet only) | `admin` / `make grafana-password` |
 | ArgoCD | https://argocd.h.mico.ie (tailnet only) | `admin` / `make argocd-password` |
 | Longhorn UI | https://longhorn.h.mico.ie (tailnet only, no auth of its own) | never on the LAN |
+| Immich | https://immich.h.mico.ie (tailnet only; same URL in the mobile app) | first visit creates the admin account |
 | Cloudflare DNS | https://dash.cloudflare.com — zone `mico.ie`, record `*.h.mico.ie` → Traefik's tailnet IP | DNS-only (grey cloud) |
 | Nodes (SSH) | `ssh ops@192.168.69.101` … `.103`, or `ssh ops@opi4p-1.tail1b6ff6.ts.net` (Tailscale SSH) | root SSH is off |
 | kubectl | `make nodes` / `make apps` (kubeconfig-tailscale by default) | `make check` = health summary |

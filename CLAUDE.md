@@ -86,7 +86,8 @@ tofu/
 gitops/
   bootstrap/    Helm chart of Applications. values.yaml: repo url/revision + toggles (tailscale, monitoring)
                 templates/: root, argocd(-10), longhorn(-3), tailscale(-5), cert-manager(-4), traefik(-4), monitoring(0), kured(5),
-                system-upgrade(5), renovate(5). `domain:` (h.mico.ie) gates cert-manager + traefik; hostnames are literal in app values
+                system-upgrade(5), renovate(5), cloudnative-pg(-4), immich(5). `domain:` (h.mico.ie) gates cert-manager + traefik;
+                `immich.enabled` gates cloudnative-pg + immich; hostnames are literal in app values
                 _helpers.tpl: shared syncPolicy (automated prune+selfHeal, ServerSideApply, retry)
   argocd/       values (insecure behind ingress, dex/notifications/appset off, small resources)
   longhorn/     values (defaultBackupStore s3://<bucket>@<region>/opi-k8s/longhorn/ — B2; nodeDownPodDeletionPolicy, preUpgradeChecker off) + manifests/
@@ -95,6 +96,10 @@ gitops/
                 k3s control-plane endpoints = node IPs) + manifests/sbc-alerts.yaml (temp/disk/mem/longhorn)
   tailscale/    operator values (oauth from secret, apiServerProxy on, proxies tagged tag:k8s)
   cert-manager/ values + manifests/clusterissuer.yaml (Let's Encrypt prod, Cloudflare DNS-01, token Secret from Tofu)
+  cloudnative-pg/ operator values (Postgres for Immich; CRDs from the chart)
+  immich/       values (OCI chart ghcr.io/immich-app/immich-charts, tag pinned separately, tailnet ingress, ML cache PVC,
+                valkey emptyDir, ServiceMonitors) + manifests/ (library PVC 250Gi longhorn-encrypted; CNPG Cluster pg18 with
+                vchord image-volume extension + Database CRD → Secret immich-database-app feeds the DB_* env)
   traefik/      manifests/tailnet.yaml: HelmChartConfig adds Traefik entrypoint `tailnet` (8444, not in the LAN LB) +
                 Service traefik-tailnet (LoadBalancer class tailscale, hostname `h`) → UIs at https://<app>.h.mico.ie,
                 Ingress annotation router.entrypoints=tailnet makes them tailnet-only (Longhorn UI never on the LAN)
@@ -107,7 +112,7 @@ gitops/
 ## Pinned versions (all GA, verified 2026-09-01)
 
 k3s v1.36.4+k3s1 · argo-cd chart 10.4.2 (pinned only in gitops/bootstrap/templates/argocd.yaml) · kube-prometheus-stack 88.3.0 · longhorn 1.12.0 ·
-tailscale-operator 1.102.3 · cert-manager v1.21.2 · kured chart 6.0.0 · argocd-apps chart 2.0.5 · system-upgrade-controller v0.18.0 ·
+tailscale-operator 1.102.3 · cert-manager v1.21.2 · cloudnative-pg chart 0.29.0 (operator 1.30.0) · immich chart 0.13.2 (Immich v3.2.2) · kured chart 6.0.0 · argocd-apps chart 2.0.5 · system-upgrade-controller v0.18.0 ·
 OpenTofu 1.12.6 · Ansible 14.3.1 community package (= core 2.21.3 + collections) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 ·
 hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · hashicorp/kubernetes ~>2.38
 

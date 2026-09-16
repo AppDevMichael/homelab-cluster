@@ -1,0 +1,37 @@
+{{- if .Values.immich.enabled }}
+# PostgreSQL operator, needed by Immich (gitops/immich/manifests/database.yaml)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnative-pg
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://cloudnative-pg.github.io/charts
+      chart: cloudnative-pg
+      targetRevision: 0.29.0
+      helm:
+        releaseName: cnpg
+        valueFiles:
+          - $values/gitops/cloudnative-pg/values.yaml
+    - repoURL: "{{ .Values.repo.url }}"
+      targetRevision: "{{ .Values.repo.revision }}"
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  # the operator injects its CA into its webhooks
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions: [".webhooks[].clientConfig.caBundle"]
+  {{- include "bootstrap.syncPolicy" . | nindent 2 }}
+{{- end }}

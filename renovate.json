@@ -46,6 +46,18 @@
       "depNameTemplate": "argocd-apps",
       "datasourceTemplate": "helm",
       "registryUrlTemplate": "https://argoproj.github.io/argo-helm"
+    },
+    {
+      "customType": "regex",
+      "description": "Immich release pinned in the chart values (chart lags Immich)",
+      "managerFilePatterns": [
+        "/^gitops/immich/values\\.yaml$/"
+      ],
+      "matchStrings": [
+        "tag: (?<currentValue>v\\d+\\.\\d+\\.\\d+)\\s+# Immich release"
+      ],
+      "depNameTemplate": "immich-app/immich",
+      "datasourceTemplate": "github-releases"
     }
   ],
   "packageRules": [
