@@ -1,0 +1,785 @@
+# Hardware dashboard: SoC/RAM/NVMe temperatures (node-exporter thermal zones) + NVMe SMART (smartctl-exporter).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-hardware
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  hardware.json: |
+    {
+     "title": "Hardware",
+     "uid": "hardware",
+     "tags": [
+      "home"
+     ],
+     "timezone": "browser",
+     "schemaVersion": 39,
+     "version": 1,
+     "refresh": "1m",
+     "time": {
+      "from": "now-24h",
+      "to": "now"
+     },
+     "panels": [
+      {
+       "type": "row",
+       "title": "Temperatures (\u00b0C)",
+       "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+       },
+       "collapsed": false
+      },
+      {
+       "type": "timeseries",
+       "title": "CPU (big / little cores)",
+       "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 8,
+        "h": 8
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "celsius",
+         "custom": {
+          "lineWidth": 2,
+          "thresholdsStyle": {
+           "mode": "line"
+          }
+         },
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "orange",
+            "value": 70
+           },
+           {
+            "color": "red",
+            "value": 85
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "bottom"
+        },
+        "tooltip": {
+         "mode": "multi"
+        }
+       },
+       "targets": [
+        {
+         "expr": "max by (instance) (node_thermal_zone_temp{type=\"cpub_thermal_zone\"})",
+         "legendFormat": "{{instance}} big",
+         "refId": "A"
+        },
+        {
+         "expr": "max by (instance) (node_thermal_zone_temp{type=\"cpul_thermal_zone\"})",
+         "legendFormat": "{{instance}} little",
+         "refId": "B"
+        }
+       ]
+      },
+      {
+       "type": "timeseries",
+       "title": "RAM (DDR)",
+       "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 8,
+        "h": 8
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "celsius",
+         "custom": {
+          "lineWidth": 2,
+          "thresholdsStyle": {
+           "mode": "line"
+          }
+         },
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "orange",
+            "value": 70
+           },
+           {
+            "color": "red",
+            "value": 85
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "bottom"
+        },
+        "tooltip": {
+         "mode": "multi"
+        }
+       },
+       "targets": [
+        {
+         "expr": "node_thermal_zone_temp{type=\"ddr_thermal_zone\"}",
+         "legendFormat": "{{instance}}",
+         "refId": "A"
+        }
+       ]
+      },
+      {
+       "type": "timeseries",
+       "title": "NVMe",
+       "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 8,
+        "h": 8
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "celsius",
+         "custom": {
+          "lineWidth": 2,
+          "thresholdsStyle": {
+           "mode": "line"
+          }
+         },
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "orange",
+            "value": 60
+           },
+           {
+            "color": "red",
+            "value": 70
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "bottom"
+        },
+        "tooltip": {
+         "mode": "multi"
+        }
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_temperature{temperature_type=\"current\"}",
+         "legendFormat": "{{node}} {{device}}",
+         "refId": "A"
+        }
+       ]
+      },
+      {
+       "type": "timeseries",
+       "title": "GPU / NPU / board skin",
+       "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 7
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "celsius",
+         "custom": {
+          "lineWidth": 2
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "bottom"
+        },
+        "tooltip": {
+         "mode": "multi"
+        }
+       },
+       "targets": [
+        {
+         "expr": "node_thermal_zone_temp{type=\"gpu_thermal_zone\"}",
+         "legendFormat": "{{instance}} gpu",
+         "refId": "A"
+        },
+        {
+         "expr": "node_thermal_zone_temp{type=\"npu_thermal_zone\"}",
+         "legendFormat": "{{instance}} npu",
+         "refId": "B"
+        },
+        {
+         "expr": "node_thermal_zone_temp{type=\"skin_zone\"}",
+         "legendFormat": "{{instance}} skin",
+         "refId": "C"
+        }
+       ]
+      },
+      {
+       "type": "timeseries",
+       "title": "CPU clock (max of policies)",
+       "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 7
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "hertz",
+         "custom": {
+          "lineWidth": 2
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "bottom"
+        },
+        "tooltip": {
+         "mode": "multi"
+        }
+       },
+       "targets": [
+        {
+         "expr": "max by (instance) (node_cpu_scaling_frequency_hertz)",
+         "legendFormat": "{{instance}}",
+         "refId": "A"
+        }
+       ]
+      },
+      {
+       "type": "row",
+       "title": "NVMe SMART",
+       "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 1
+       },
+       "collapsed": false
+      },
+      {
+       "type": "stat",
+       "title": "SMART status",
+       "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 6,
+        "h": 4
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "none",
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "red",
+            "value": 0
+           },
+           {
+            "color": "green",
+            "value": 1
+           }
+          ]
+         },
+         "mappings": [
+          {
+           "type": "value",
+           "options": {
+            "1": {
+             "text": "PASSED",
+             "color": "green"
+            },
+            "0": {
+             "text": "FAILED",
+             "color": "red"
+            }
+           }
+          }
+         ]
+        },
+        "overrides": []
+       },
+       "options": {
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ],
+         "fields": "",
+         "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "background"
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_smart_status",
+         "legendFormat": "{{node}}",
+         "refId": "A",
+         "instant": true
+        }
+       ]
+      },
+      {
+       "type": "stat",
+       "title": "Critical warning flags",
+       "gridPos": {
+        "x": 6,
+        "y": 17,
+        "w": 6,
+        "h": 4
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "none",
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "red",
+            "value": 1
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ],
+         "fields": "",
+         "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "background"
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_critical_warning",
+         "legendFormat": "{{node}}",
+         "refId": "A",
+         "instant": true
+        }
+       ]
+      },
+      {
+       "type": "stat",
+       "title": "Media errors",
+       "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 6,
+        "h": 4
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "none",
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "red",
+            "value": 1
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ],
+         "fields": "",
+         "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "background"
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_media_errors",
+         "legendFormat": "{{node}}",
+         "refId": "A",
+         "instant": true
+        }
+       ]
+      },
+      {
+       "type": "stat",
+       "title": "Available spare",
+       "gridPos": {
+        "x": 18,
+        "y": 17,
+        "w": 6,
+        "h": 4
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "percent",
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "red",
+            "value": 0
+           },
+           {
+            "color": "green",
+            "value": 20
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ],
+         "fields": "",
+         "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "background"
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_available_spare",
+         "legendFormat": "{{node}}",
+         "refId": "A",
+         "instant": true
+        }
+       ]
+      },
+      {
+       "type": "stat",
+       "title": "Wear (percentage used)",
+       "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 6,
+        "h": 4
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "percent",
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "orange",
+            "value": 50
+           },
+           {
+            "color": "red",
+            "value": 80
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ],
+         "fields": "",
+         "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "background"
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_percentage_used",
+         "legendFormat": "{{node}}",
+         "refId": "A",
+         "instant": true
+        }
+       ]
+      },
+      {
+       "type": "stat",
+       "title": "Power-on time",
+       "gridPos": {
+        "x": 6,
+        "y": 21,
+        "w": 6,
+        "h": 4
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "s",
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ],
+         "fields": "",
+         "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "background"
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_power_on_seconds",
+         "legendFormat": "{{node}}",
+         "refId": "A",
+         "instant": true
+        }
+       ]
+      },
+      {
+       "type": "stat",
+       "title": "Unsafe shutdowns",
+       "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 6,
+        "h": 4
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "none",
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           },
+           {
+            "color": "orange",
+            "value": 10
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ],
+         "fields": "",
+         "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "background"
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_unsafe_shutdowns",
+         "legendFormat": "{{node}}",
+         "refId": "A",
+         "instant": true
+        }
+       ]
+      },
+      {
+       "type": "stat",
+       "title": "Total written",
+       "gridPos": {
+        "x": 18,
+        "y": 21,
+        "w": 6,
+        "h": 4
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "bytes",
+         "thresholds": {
+          "mode": "absolute",
+          "steps": [
+           {
+            "color": "green",
+            "value": null
+           }
+          ]
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ],
+         "fields": "",
+         "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "background"
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_bytes_written",
+         "legendFormat": "{{node}}",
+         "refId": "A",
+         "instant": true
+        }
+       ]
+      },
+      {
+       "type": "timeseries",
+       "title": "NVMe temperature history",
+       "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 12,
+        "h": 7
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "celsius",
+         "custom": {
+          "lineWidth": 2
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "bottom"
+        },
+        "tooltip": {
+         "mode": "multi"
+        }
+       },
+       "targets": [
+        {
+         "expr": "smartctl_device_temperature{temperature_type=\"current\"}",
+         "legendFormat": "{{node}}",
+         "refId": "A"
+        }
+       ]
+      },
+      {
+       "type": "timeseries",
+       "title": "Unsafe shutdowns / media errors (rate)",
+       "gridPos": {
+        "x": 12,
+        "y": 25,
+        "w": 12,
+        "h": 7
+       },
+       "fieldConfig": {
+        "defaults": {
+         "unit": "none",
+         "custom": {
+          "lineWidth": 2
+         }
+        },
+        "overrides": []
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "bottom"
+        },
+        "tooltip": {
+         "mode": "multi"
+        }
+       },
+       "targets": [
+        {
+         "expr": "increase(smartctl_device_unsafe_shutdowns[1d])",
+         "legendFormat": "{{node}} unsafe shutdowns/day",
+         "refId": "A"
+        },
+        {
+         "expr": "increase(smartctl_device_media_errors[1d])",
+         "legendFormat": "{{node}} media errors/day",
+         "refId": "B"
+        }
+       ]
+      }
+     ]
+    }

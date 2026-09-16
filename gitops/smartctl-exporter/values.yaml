@@ -1,0 +1,11 @@
+# smartctl_exporter: SMART health + temperature of each node's NVMe (the custom kernel has no hwmon, so node-exporter
+# can't see the drive). Default tolerations already cover the quorum-only taint. Dashboard: gitops/monitoring/manifests/hardware-dashboard.yaml
+serviceMonitor:
+  enabled: true
+  relabelings:
+    - { sourceLabels: [__meta_kubernetes_pod_node_name], targetLabel: node }
+prometheusRules:
+  enabled: true           # chart's own rules: SMART status, media errors, critical warning, spare under threshold, >60°C
+resources:
+  requests: { cpu: 10m, memory: 32Mi }
+  limits:   { memory: 64Mi }
