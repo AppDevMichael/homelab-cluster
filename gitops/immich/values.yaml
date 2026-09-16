@@ -22,8 +22,8 @@ server:
             DB_DATABASE_NAME:
               valueFrom: { secretKeyRef: { name: immich-database-app, key: dbname } }
           resources:
-            requests: { cpu: 200m, memory: 512Mi }
-            limits:   { memory: 2Gi }
+            requests: { cpu: 200m, memory: 1Gi }
+            limits:   { memory: 4Gi }        # 2Gi was OOM-killed 9x during the first library import (thumbnails+metadata+faces)
   ingress:
     main:
       enabled: true
@@ -50,7 +50,7 @@ machine-learning:
         main:
           resources:
             requests: { cpu: 100m, memory: 512Mi }
-            limits:   { memory: 3Gi }      # CLIP + face models on CPU (arm64)
+            limits:   { memory: 4Gi }      # CLIP + face models on CPU (arm64)
   persistence:
     cache:                # downloaded models; emptyDir would re-download on every restart
       enabled: true
