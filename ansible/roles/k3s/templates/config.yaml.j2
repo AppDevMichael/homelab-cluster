@@ -3,10 +3,10 @@ token: "{{ k3s_token }}"
 node-name: "{{ inventory_hostname }}"
 node-ip: "{{ ansible_host }}"
 write-kubeconfig-mode: "0644"
-{% if k3s_role == 'init' %}
+{% if k3s_role == 'init' and k3s_join_server is not defined %}
 cluster-init: true
 {% else %}
-server: "https://{{ hostvars[groups['k3s_init'][0]].ansible_host }}:6443"
+server: "https://{{ k3s_join_server | default(hostvars[groups['k3s_init'][0]].ansible_host) }}:6443"
 {% endif %}
 tls-san:
 {% for h in groups['k3s_cluster'] %}

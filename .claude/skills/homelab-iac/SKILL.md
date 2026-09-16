@@ -73,7 +73,7 @@ every backup.
   `$values` ref + optional manifests path), reuse the `bootstrap.syncPolicy` helper, pick a
   sync-wave (storage −3, operators −5, apps 0, maintenance 5), add `gitops/<app>/values.yaml`.
 - Ansible: FQCN modules, `no_log: true` on anything touching secrets, idempotent — a second run
-  must report zero changes. Canary with `-l opi-2` (and `--check --diff` for anything that can restart a
+  must report zero changes. Canary with `-l opi4p-2` (and `--check --diff` for anything that can restart a
   service) before all three; this is a production cluster.
 - Never `--start-at-task` into a play whose templates use facts set by an earlier role unless that role
   gathers them itself (the k3s role does, for Tailscale SANs). A missing fact = a changed render = a restart.

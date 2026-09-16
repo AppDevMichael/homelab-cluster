@@ -50,13 +50,14 @@ scripts/
   restore-longhorn-volumes.sh   DR: recreate Volume + PV + PVC from latest Longhorn backups
   prepare-sd.sh           optional Linux-only: seed SSH key onto a fresh SD (avoids root/1234 login)
 ansible/
-  site.yml                plays in order: firstboot(+nvme) → kernel,common,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
+  site.yml                plays in order: firstboot(+nvme) → kernel,common,power,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
                           roles/hardening ends with set_fact ansible_user=hardening_admin_user (root SSH is off by then); firstboot uses root only when firstboot_ip is set
   upgrade-os.yml          `make os-upgrade [LIMIT=]`: rolling apt full-upgrade with drain/reboot/uncordon
   reboot.yml              `make reboot [LIMIT=]`: rolling drain → reboot → uncordon (roles/rolling/tasks/{drain,resume}.yml, shared with
                           upgrade-os and roles/kernel)
-  kernel.yml              rolling custom-kernel install (`make kernel-install [LIMIT=opi-2]`), drains only if k3s present
-  spi-boot.yml            `make spi-boot [LIMIT=opi-2]`: apply roles/nvme/tasks/spi.yml one node at a time (then remove SD cards)
+  kernel.yml              rolling custom-kernel install (`make kernel-install [LIMIT=opi4p-2]`), drains only if k3s present
+  spi-boot.yml            `make spi-boot [LIMIT=opi4p-2]`: apply roles/nvme/tasks/spi.yml one node at a time (then remove SD cards)
+  rename-node.yml         rename a node (k3s names are immutable): keep `old_node_name` on the inventory host, `-l <new>`, one at a time
   inventory/hosts.yml     ansible_host = target static IP, firstboot_ip = first-boot DHCP IP (remove after)
   group_vars/all.yml      ALL tunables: versions, CIDRs, static IP, NVMe, hardening, updates, backups
   roles/
@@ -66,6 +67,7 @@ ansible/
     kernel      stage kernel/debs/*.deb, apt install + hold; drain → reboot → uncordon ONLY when the running kernel lacks
                 dm-crypt (a no-op run touches nothing); verify dm_crypt/iscsi_tcp; lowpower.yml blacklists wifi/BT/video + masks services
     common      swap off (zram), cgroup boot args, sysctls, modules (dm_crypt, iscsi_tcp), packages
+    power       tmpfiles.d caps on scaling_max_freq (group_vars power_cpu_max_khz); status LED left on (power_status_led_off)
     tailscale   apt repo, `tailscale up --ssh`, auto-update, records tailscale_ip/tailscale_dns facts
     hardening   ops user + keys, sshd drop-in, nftables (default-drop, k3s-aware), sysctls, fail2ban, journald
     updates     unattended-upgrades (security pockets), needrestart, reboot-required flag for kured
@@ -142,8 +144,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 
 ## Hardware facts (verified on real boards 2026-09-01)
 
-- Orange Pi 4 Pro = Allwinner A733 (family `sun60iw2`), 8 cores, NVMe present. **opi-1/opi-2: 12 GB RAM; opi-3: 4 GB**
-  (hardware) → opi-3 is `k3s_quorum_only` (taint+label, no Longhorn replicas): etcd member + DaemonSets only. Armbian ships it
+- Orange Pi 4 Pro = Allwinner A733 (family `sun60iw2`), 8 cores, NVMe present. **opi4p-1/opi4p-2: 12 GB RAM; opi4p-3: 4 GB**
+  (hardware) → opi4p-3 is `k3s_quorum_only` (taint+label, no Longhorn replicas): etcd member + DaemonSets only. Armbian ships it
   only as a `.csc` community board → **nightly images only** (`26.11.0-trunk.x`, Debian 13). No stable OS exists.
 - Vendor kernel `6.6.98-vendor-sun60iw2` (upstream config `linux-sun60iw2-vendor.config`) has **no device-mapper
   (`CONFIG_MD`), no dm-crypt, no iSCSI, no XTS, no CIFS**. Decision: **custom kernel** (`make kernel`, `kernel/`), same
@@ -179,15 +181,22 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    in tfvars (hence git_ssh_private_key_file); backend/providers use kubeconfig-tailscale.
 7. system-upgrade Plan: `channel: v1.36` chosen to match the Ansible pin; do not use `stable` (could be lower).
 8. **Never put `node-role.kubernetes.io/*` in k3s `node-label`**: the kubelet refuses to self-apply labels in the kubernetes.io
-   namespace and the whole k3s process crash-loops (opi-3 was NotReady for 11 days after such a render, 2026-09-04→15; the
+   namespace and the whole k3s process crash-loops (opi4p-3 was NotReady for 11 days after such a render, 2026-09-04→15; the
    etcd member flapped but quorum held). Taint/label with kubectl from the k3s role instead (already the case). After any
    template change, re-render on every node it applies to — a node left on the old render is a silent time bomb.
 9. Longhorn `taint-toleration` (quorum-only taint) shows `applied=false`: Longhorn applies it only when NO volume is attached.
-   Until then the system-managed DaemonSets (engine-image, csi-plugin) lack the toleration and won't reschedule on opi-3
+   Until then the system-managed DaemonSets (engine-image, csi-plugin) lack the toleration and won't reschedule on opi4p-3
    after a reboot — harmless (no replicas there) but the Longhorn node will show as not ready. Apply in a maintenance
    window: scale monitoring to 0 (volumes detach) → setting applies → scale back.
-10. Node rename to opi4p-N (owner request 2026-09-04, has other Orange Pis): k3s node names are immutable → per node:
-   drain, `k3s-uninstall.sh`, rename host/inventory/Tailscale, rejoin (etcd member replaced). Do opi-3 first.
+10. (done 2026-09-16) Nodes renamed opi-N → opi4p-N with `ansible/rename-node.yml` (k3s node names are immutable: drain →
+   k3s-uninstall → hostname/Tailscale → rejoin via a live server → restic timer). Re-runnable; when BACKUP_KEY is unset it reads
+   the key from the node's /etc/restic/password. k3s-uninstall.sh bails out ("Additional k3s services") while
+   k3s-backup.service exists — the play detaches the units first. Longhorn only deletes a node record that is down,
+   unschedulable and replica-free, so the play deletes the (stopped) replica records on the old node first.
+11. **Drains block on Longhorn's instance-manager PDB** whenever a node holds the LAST replica of a volume — detached volumes
+   count (the Renovate cache PVC had its only live replica on opi-1, 2026-09-16). Fixed by `nodeDrainPolicy:
+   block-for-eviction-if-contains-last-replica` (gitops/longhorn/values.yaml): Longhorn rebuilds that replica elsewhere,
+   then lets the drain through. Applies to kured, `make reboot`, `make os-upgrade` and rename-node alike.
 
 ## Agreed next batch (not done yet — verified against the repo 2026-09-03)
 
@@ -200,10 +209,11 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 6. (done 2026-09-15) CI: lint.yml on every PR; Renovate runs as a CronJob on the cluster (gitops/renovate) — owner wants
    as few outside services as possible; only GitHub (the repo) remains. Needs renovate_github_token in tfvars + `make argocd`.
 7. (done 2026-09-04) `make reboot [LIMIT=]` rolling drain/reboot/uncordon; /var/log moved to NVMe (ramlog off).
-8. `roles/power` (owner asked 2026-09-02): cap CPU clocks (big cores 1.4 GHz, little 1.2 GHz), status LED off, USB
-   controllers unbound, PCIe ASPM behind an off-by-default flag — measure first with a smart plug / inline USB-C meter.
+8. (done 2026-09-15) `roles/power`: tmpfiles.d caps scaling_max_freq (little 1.2 GHz, big 1.4 GHz); LED kept (owner wants the
+   heartbeat). Whole rig (3 boards + a Pi + switch) idles at ~20 W on the owner's smart plug; verdict on the caps needs a
+   day of post-cap history. USB unbind / PCIe ASPM not done — measure first.
 Later: Longhorn System Backup, Loki+Alloy logs, cert-manager/local DNS, Trivy, NetworkPolicies, UPS.
-Settled (do not reopen): opi-1/2 have 12 GB, opi-3 has 4 GB and is quorum-only; SD cards are out (SPI boot); Longhorn backups
+Settled (do not reopen): opi4p-1/2 have 12 GB, opi4p-3 has 4 GB and is quorum-only; SD cards are out (SPI boot); Longhorn backups
 go to B2 (ISP blocks SMB); /var/log is on the NVMe (Armbian ramlog disabled); rx_dropped on end0 is VLAN/LAN noise, not loss.
 
 ## Conventions when editing

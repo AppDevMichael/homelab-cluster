@@ -27,10 +27,10 @@ key:               ## print the derived backup key (store it in your password ma
 kernel:            ## build the custom vendor kernel (dm-crypt/iSCSI/CIFS, headless) in Docker → kernel/debs/
 	scripts/build-kernel.sh
 
-kernel-install:    ## install/upgrade kernel/debs/ on the nodes one at a time (drains if k3s is up); LIMIT=opi-2 for a canary
+kernel-install:    ## install/upgrade kernel/debs/ on the nodes one at a time (drains if k3s is up); LIMIT=opi4p-2 for a canary
 	$(PLAY) kernel.yml $(LIMITFLAG)
 
-spi-boot:          ## u-boot → SPI NOR, /boot → NVMe, one node at a time; then pull the SD cards. LIMIT=opi-2 for a canary
+spi-boot:          ## u-boot → SPI NOR, /boot → NVMe, one node at a time; then pull the SD cards. LIMIT=opi4p-2 for a canary
 	$(PLAY) spi-boot.yml $(LIMITFLAG)
 
 kernel-clean:      ## delete the armbian/build checkout and its caches (~15 GB)
@@ -71,10 +71,10 @@ backup-restore-config: ## pull them back (disaster recovery step 1)
 restore-volumes:   ## recreate Longhorn volumes + PV/PVCs from the latest backups (disaster recovery step 3)
 	scripts/restore-longhorn-volumes.sh
 
-reboot:            ## rolling drain → reboot → uncordon, one node at a time; LIMIT=opi-2 for one node
+reboot:            ## rolling drain → reboot → uncordon, one node at a time; LIMIT=opi4p-2 for one node
 	$(PLAY) reboot.yml $(LIMITFLAG)
 
-os-upgrade:        ## rolling apt full-upgrade (Armbian kernel etc.), one node at a time; LIMIT=opi-2 for one node
+os-upgrade:        ## rolling apt full-upgrade (Armbian kernel etc.), one node at a time; LIMIT=opi4p-2 for one node
 	$(PLAY) upgrade-os.yml $(LIMITFLAG)
 
 destroy:           ## remove ArgoCD + bootstrap secrets (nodes and Longhorn data on disk untouched)

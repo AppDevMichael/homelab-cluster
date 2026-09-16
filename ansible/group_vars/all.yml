@@ -34,6 +34,14 @@ nvme_spi_boot: true                  # u-boot in the SPI NOR + /boot on the NVMe
 kernel_custom_enabled: true
 kernel_headless: true                # no HDMI/audio/Wi-Fi/BT/camera drivers (lower idle power; SSH/serial only)
 
+# ---- Power (roles/power) -------------------------------------------------
+# Orange Pi 4 Pro: policy0 = 6 little cores (max 1.79 GHz), policy6 = 2 big cores (max 2.0 GHz). Capping the top of the
+# curve saves the most under load; idle is unchanged. Values must be in scaling_available_frequencies.
+power_cpu_max_khz:
+  policy0: 1196000     # little cores 1.2 GHz
+  policy6: 1404000     # big cores 1.4 GHz
+power_status_led_off: false   # owner wants the heartbeat LED (only liveness indicator; no HDMI)
+
 # ---- OS ----------------------------------------------------------------
 timezone: "Etc/UTC"
 base_packages:

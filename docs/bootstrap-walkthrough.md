@@ -77,7 +77,7 @@ The Makefile checks that `BACKUP_KEY` is non-empty, then runs `cd ansible && ans
 `ansible/ansible.cfg` supplies the inventory (`inventory/hosts.yml`), disables host key checking, turns on
 pipelining and `ControlPersist=60s`, and sets `callback_result_format = yaml` for readable task results.
 
-The inventory has three hosts: `opi-1` in group `k3s_init`, `opi-2` and `opi-3` in `k3s_servers`, all three
+The inventory has three hosts: `opi4p-1` in group `k3s_init`, `opi4p-2` and `opi4p-3` in `k3s_servers`, all three
 in `k3s_cluster`. `ansible_host` is the static IP each board should end on (192.168.69.101 to .103). A
 commented `firstboot_ip` per host is the DHCP address the board had on first power-on. Group vars set
 `ansible_user: root` and `ansible_become: true`.
@@ -205,8 +205,8 @@ How to tell it worked: `swapon --show` prints nothing; `lsmod | grep -E 'dm_cryp
 - Records `tailscale_ip` and `tailscale_dns` (MagicDNS name) as host facts. The k3s role puts both into the
   API server certificate (`tls-san`), and play 6 uses `tailscale_ip` for the second kubeconfig.
 
-How to tell it worked: the "Show Tailscale identity" task prints `opi-N -> 100.x.y.z (opi-N.<tailnet>.ts.net)`
-for each node. The 2026-09-02 log shows all three joined. Tailscale SSH (`tailscale ssh ops@opi-1`) is the
+How to tell it worked: the "Show Tailscale identity" task prints `opi4p-N -> 100.x.y.z (opi4p-N.<tailnet>.ts.net)`
+for each node. The 2026-09-02 log shows all three joined. Tailscale SSH (`tailscale ssh ops@opi4p-1`) is the
 fallback path once LAN SSH is locked down, provided your tailnet ACLs have an `ssh` rule.
 
 ### Play 2, role `hardening`
@@ -262,7 +262,7 @@ How to tell it worked: the dry-run task is `ok`; `systemctl list-timers apt-dail
 Because the held kernel packages come from the Armbian origin and that origin is excluded by default, the
 custom kernel is never touched by unattended-upgrades.
 
-### Play 3, role `k3s` as `init` (opi-1 only)
+### Play 3, role `k3s` as `init` (opi4p-1 only)
 
 Now connecting as `ops` with sudo.
 
@@ -274,15 +274,15 @@ Now connecting as `ops` with sudo.
   control-plane metrics bound to 0.0.0.0.
 - Downloads `https://get.k3s.io` to `/usr/local/bin/k3s-install.sh` and runs it with
   `INSTALL_K3S_VERSION=v1.36.4+k3s1` (guarded by `creates: /usr/local/bin/k3s`).
-- Enables and starts `k3s`, waits for port 6443, then polls `kubectl get node opi-1` until `Ready`.
+- Enables and starts `k3s`, waits for port 6443, then polls `kubectl get node opi4p-1` until `Ready`.
 - Symlinks `/usr/local/bin/kubectl` to `k3s`.
 
 Config changes on re-runs notify `restart k3s`, which only fires if the binary already exists.
 
-How to tell it worked: `sudo kubectl get nodes` on opi-1 shows one Ready node with the
+How to tell it worked: `sudo kubectl get nodes` on opi4p-1 shows one Ready node with the
 `control-plane,etcd,master` roles.
 
-### Play 4, role `k3s` as `server` (opi-2, then opi-3, serial 1)
+### Play 4, role `k3s` as `server` (opi4p-2, then opi4p-3, serial 1)
 
 Same role, but `config.yaml` gets `server: https://192.168.69.101:6443` instead of `cluster-init`. Each node
 installs, starts, waits for its own 6443 and its own Ready condition before the next one begins, so etcd
@@ -301,19 +301,19 @@ How to tell it worked: `kubectl get nodes` shows three Ready servers.
 - Installs restic on the node, writes `/etc/restic/{storagebox_ed25519,password,env,known_hosts}` and
   `/usr/local/sbin/k3s-backup`. The script takes a fresh etcd snapshot, backs up
   `/var/lib/rancher/k3s/server/db/snapshots` and `/etc/rancher/k3s` with tags `etcd` and the hostname, and on
-  opi-1 only runs `forget` (7 daily, 4 weekly, 3 monthly) and a 5 percent `check`.
-- Installs `k3s-backup.timer` at 03:10, 03:20, 03:30 UTC for opi-1, -2, -3 respectively.
+  opi4p-1 only runs `forget` (7 daily, 4 weekly, 3 monthly) and a 5 percent `check`.
+- Installs `k3s-backup.timer` at 03:10, 03:20, 03:30 UTC for opi4p-1, -2, -3 respectively.
 - Initialises the restic repository once if `restic snapshots` fails.
 
 How to tell it worked: `sudo systemctl list-timers k3s-backup.timer` on each node; `sudo /usr/local/sbin/k3s-backup`
 by hand and then `restic snapshots` via `scripts/backup-config.sh snapshots` from the control machine.
 
-### Play 6, fetch kubeconfig (opi-1)
+### Play 6, fetch kubeconfig (opi4p-1)
 
 Reads `/etc/rancher/k3s/k3s.yaml`, replaces `127.0.0.1` with the LAN IP and writes `<repo>/kubeconfig`;
 does the same with the Tailscale IP into `<repo>/kubeconfig-tailscale`. Both are mode 0600 and git-ignored.
 The two local `copy` tasks set `ansible_become: false` as a var (5d). The play ends by printing
-`kubectl get nodes -o wide` from opi-1.
+`kubectl get nodes -o wide` from opi4p-1.
 
 How to tell it worked: `make nodes` from the repo shows three Ready nodes, using the `KUBECONFIG` mise exports.
 
@@ -423,7 +423,7 @@ If a board will not boot the custom kernel:
 
 ### Canary and upgrade path
 
-`make kernel-install LIMIT=opi-2` runs `ansible/kernel.yml` on one node. It is the same `kernel` role wrapped
+`make kernel-install LIMIT=opi4p-2` runs `ansible/kernel.yml` on one node. It is the same `kernel` role wrapped
 in a `serial: 1` play that:
 
 - checks `/var/lib/rancher/k3s/server/cred` to see whether k3s exists on the node,
@@ -433,7 +433,7 @@ in a `serial: 1` play that:
 
 To ship a new kernel: bump `kernel/userpatches/VERSION` to `26.08.0-k8s.<N+1>`, optionally move
 `ARMBIAN_COMMIT` in `scripts/build-kernel.sh`, `make kernel`, copy `kernel/debs/` to the control machine,
-`make kernel-install LIMIT=opi-2`, check it comes back (`make nodes`, the config.gz grep above), then
+`make kernel-install LIMIT=opi4p-2`, check it comes back (`make nodes`, the config.gz grep above), then
 `make kernel-install` for the rest. Because `roles/kernel` is also in `site.yml`, a later `make bootstrap`
 would install the new debs too, but in parallel with only the reboot throttled, so prefer `kernel-install`
 on a live cluster.
@@ -562,7 +562,7 @@ Fix: read the config into a variable once and grep the variable (`roles/kernel/t
 
 ### Open when this was written
 
-The k3s-init play could not reach opi-1 on port 22 (section 2, "State of the 2026-09-02 run"). Not
+The k3s-init play could not reach opi4p-1 on port 22 (section 2, "State of the 2026-09-02 run"). Not
 diagnosed yet; start with fail2ban and the `/24` versus `/22` LAN definition.
 
 ## 6. Day-2 pointers
@@ -571,7 +571,7 @@ diagnosed yet; start with fail2ban and the `/24` versus `/22` LAN definition.
 |---|---|---|
 | Re-run bootstrap after hardening | `make bootstrap` | Remove every `firstboot_ip` first. The hardening role switches Ansible to `ops` for the rest of that run and all later runs; a host with `firstboot_ip` is treated as fresh (root, default password) |
 | Full OS upgrade including Armbian packages | `make os-upgrade` | `ansible/upgrade-os.yml`: drain, `apt full-upgrade`, reboot if `/var/run/reboot-required`, uncordon, wait Ready, 60 s pause, next node. The held kernel packages are skipped |
-| New custom kernel | `make kernel` then `make kernel-install LIMIT=opi-2`, then `make kernel-install` | Section 3. Bump `kernel/userpatches/VERSION` first |
+| New custom kernel | `make kernel` then `make kernel-install LIMIT=opi4p-2`, then `make kernel-install` | Section 3. Bump `kernel/userpatches/VERSION` first |
 | Save laptop-side secrets | `make backup-config` | Also runs at the end of every `make argocd`. `make backup-restore-config` pulls them back |
 | Inspect Tofu state | `make state-show` | Secret timestamp + `tofu state list` |
 | Check the cluster | `make nodes`, `make apps` | `kubectl get nodes -o wide` and the ArgoCD Applications |

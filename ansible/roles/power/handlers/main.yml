@@ -1,0 +1,4 @@
+---
+- name: Apply tmpfiles
+  ansible.builtin.command: systemd-tmpfiles --create /etc/tmpfiles.d/power.conf
+  changed_when: true

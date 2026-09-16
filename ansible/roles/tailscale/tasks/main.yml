@@ -44,6 +44,11 @@
   when: (ts_status.stdout | default('{}') | from_json).BackendState | default('') != 'Running'
   no_log: true
 
+- name: Tailscale device name = inventory name
+  ansible.builtin.command: tailscale set --hostname={{ inventory_hostname }}
+  register: tailscale_hostname
+  changed_when: false   # tailscale set is silent either way; the identity task below shows the effective name
+
 - name: Enable Tailscale self-update
   ansible.builtin.command: tailscale set --auto-update={{ 'true' if tailscale_auto_update else 'false' }}
   changed_when: false

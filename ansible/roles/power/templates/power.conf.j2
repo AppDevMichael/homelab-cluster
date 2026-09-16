@@ -1,0 +1,9 @@
+# Managed by Ansible (roles/power) — applied by systemd-tmpfiles at every boot, no custom service.
+# Caps on the cpufreq governor's ceiling; idle behaviour (schedutil, deep C-states) is untouched.
+{% for policy, khz in power_cpu_max_khz.items() %}
+w /sys/devices/system/cpu/cpufreq/{{ policy }}/scaling_max_freq - - - - {{ khz }}
+{% endfor %}
+{% if power_status_led_off %}
+w /sys/class/leds/status_led/trigger - - - - none
+w /sys/class/leds/status_led/brightness - - - - 0
+{% endif %}

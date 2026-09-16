@@ -85,7 +85,7 @@ The Orange Pi 4 Pro has a 16 MB SPI NOR. With `nvme_spi_boot: true` (the default
 the vendor u-boot there (the same `write_uboot_platform_mtd` routine armbian-config uses), moves `/boot` from the SD
 onto the NVMe root, and removes the SD from `fstab`. The boot ROM tries the SD before the SPI, so a bootable card left
 in still wins (harmlessly, it boots the same NVMe root); **power off, pull the card, power on** to boot from SPI.
-Keep the card as a rescue disk. `make spi-boot LIMIT=opi-2` applies it to one node; `make bootstrap` applies it to all.
+Keep the card as a rescue disk. `make spi-boot LIMIT=opi4p-2` applies it to one node; `make bootstrap` applies it to all.
 The SPI is only rewritten when it does not already contain the installed u-boot package's blobs.
 
 ## Custom kernel (why `make kernel` exists)
@@ -104,7 +104,7 @@ The build runs in Docker and drops `linux-{image,dtb,headers}-vendor-sun60iw2_*.
 them so Armbian's repo cannot replace them, and reboots a node only if its running kernel still lacks dm-crypt.
 It also blacklists the Wi-Fi/BT/video modules and masks `bluetooth`, `aic8800-bluetooth` and `wpa_supplicant`.
 
-**Canary + upgrades:** `make kernel-install LIMIT=opi-2` installs on one board and reboots it; check it comes back
+**Canary + upgrades:** `make kernel-install LIMIT=opi4p-2` installs on one board and reboots it; check it comes back
 before `make bootstrap`. To upgrade later: bump `kernel/userpatches/VERSION`, optionally move the armbian/build
 commit in `scripts/build-kernel.sh`, `make kernel`, then `make kernel-install` (one node at a time, drained and
 uncordoned). Armbian ships no stable release for this board; everything is a
@@ -238,6 +238,8 @@ Tofu state needs no copying: `tofu init` finds it in the cluster. If two people/
 | Bump ArgoCD | edit `gitops/bootstrap/templates/argocd.yaml`; ArgoCD upgrades itself. Also update `tofu/variables.tf` so a fresh bootstrap matches |
 | Rotate Grafana password | change in tfvars, `make argocd`, restart the grafana pod |
 | Nuke a node | `ssh <node> /usr/local/bin/k3s-uninstall.sh`, `make bootstrap` |
+| Rename a node | rename it in `hosts.yml`, keep `old_node_name: <old>` on it, `cd ansible && ansible-playbook rename-node.yml -l <new>` (one node at a time, quorum node first); then delete `old_node_name` |
+| Change the CPU clock caps | `power_cpu_max_khz` in `group_vars/all.yml`, `make bootstrap` (roles/power, applied live, no reboot) |
 | Remove everything in-cluster | `make destroy` (ArgoCD finalizers cascade-delete the apps; Longhorn data stays on disk and on the Storage Box) |
 | Rotate the backup key | not in place — new SSH key → new key → re-encrypt: new StorageClass secret, migrate volumes (Longhorn docs), `restic key add` |
 
@@ -253,7 +255,7 @@ Tofu state needs no copying: `tofu init` finds it in the cluster. If two people/
 | Charts / ArgoCD / k3s minors / operator versions | **Renovate** PRs → you merge → ArgoCD syncs | on release | depends |
 | Armbian packages (kernel, u-boot, firmware) | **manual**: `make os-upgrade` (rolling, drained) — or set `updates_include_armbian_repo: true` to let kured handle it | you decide | rolling |
 
-Opt a node out of k3s auto-upgrades: `kubectl label node opi-2 k3s-upgrade=disabled`.
+Opt a node out of k3s auto-upgrades: `kubectl label node opi4p-2 k3s-upgrade=disabled`.
 Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.yaml` via a Secret (shoutrrr URL: Discord, Telegram, Slack, email…).
 
 ## What "hardened" means here
@@ -296,7 +298,7 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 | Grafana | http://grafana.192.168.69.101.nip.io | `admin` / `make grafana-password`; LAN from an admin host only |
 | ArgoCD | http://argocd.192.168.69.101.nip.io | `admin` / `make argocd-password` |
 | Longhorn UI | tailnet Ingress only (no auth) — enable the Tailscale operator (`gitops/bootstrap/values.yaml`) | never on the LAN |
-| Nodes (SSH) | `ssh ops@192.168.69.101` … `.103`, or `ssh ops@opi-1.tail1b6ff6.ts.net` (Tailscale SSH) | root SSH is off |
+| Nodes (SSH) | `ssh ops@192.168.69.101` … `.103`, or `ssh ops@opi4p-1.tail1b6ff6.ts.net` (Tailscale SSH) | root SSH is off |
 | kubectl | `make nodes` / `make apps` (kubeconfig-tailscale by default) | `make check` = health summary |
 | Tailscale admin | https://login.tailscale.com/admin/machines | ACL `ssh` rule for `tag:k8s` |
 | Backblaze B2 | https://secure.backblaze.com/b2_buckets.htm — bucket `mico-lab` | Longhorn volume backups |

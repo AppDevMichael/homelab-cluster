@@ -86,7 +86,7 @@ alertmanager:
       limits:   { memory: 128Mi }
 
 prometheus-node-exporter:
-  tolerations:            # opi-3 is tainted quorum-only; still export its metrics
+  tolerations:            # opi4p-3 is tainted quorum-only; still export its metrics
   - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
   resources:
     requests: { cpu: 20m, memory: 32Mi }

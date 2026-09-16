@@ -17,6 +17,9 @@ defaultBackupStore:
 
 defaultSettings:
   defaultReplicaCount: 2
+  # Drains (kured, make reboot, rename-node) block on an instance-manager PDB while a node holds the LAST replica of a
+  # volume - detached volumes included. This policy makes Longhorn rebuild that replica elsewhere first, then let the drain through.
+  nodeDrainPolicy: block-for-eviction-if-contains-last-replica
   defaultDataPath: /var/lib/longhorn
   # Failover: when a node goes NotReady, delete its stateful pods so they reschedule and the volume re-attaches elsewhere.
   nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
@@ -37,7 +40,7 @@ defaultSettings:
   upgradeChecker: false
   allowCollectingLonghornUsageMetrics: false
   v2DataEngine: false
-  # opi-3 is tainted quorum-only; Longhorn's DaemonSets/CSI still need to run there (node agent), replicas don't
+  # opi4p-3 is tainted quorum-only; Longhorn's DaemonSets/CSI still need to run there (node agent), replicas don't
   taintToleration: "node-role.kubernetes.io/quorum-only=true:NoSchedule"
 
 # CSI sidecars default to 3 replicas each (12 pods); only two nodes can schedule them and one each is plenty here
