@@ -67,8 +67,8 @@ data:
         {
          "expr": "count(kube_node_status_condition{condition=\"Ready\",status=\"true\"}==0) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -80,8 +80,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -120,8 +125,8 @@ data:
         {
          "expr": "count(argocd_app_info{sync_status!=\"Synced\"} or argocd_app_info{health_status!=\"Healthy\"}) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -133,8 +138,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -173,8 +183,8 @@ data:
         {
          "expr": "count(longhorn_volume_robustness==1) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -186,8 +196,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -226,8 +241,8 @@ data:
         {
          "expr": "count(longhorn_backup_state==3) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -239,8 +254,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -279,8 +299,8 @@ data:
         {
          "expr": "count(certmanager_certificate_expiration_timestamp_seconds - time() < 14*86400) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -292,8 +312,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -332,8 +357,8 @@ data:
         {
          "expr": "sum(kured_reboot_required) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -345,8 +370,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -397,8 +427,8 @@ data:
         {
          "expr": "count(kube_pod_status_phase{namespace=\"immich\",phase!=\"Running\",phase!=\"Succeeded\"}==1) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -410,8 +440,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -450,8 +485,8 @@ data:
         {
          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"immich\"}[24h])) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -463,8 +498,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -507,8 +547,8 @@ data:
         {
          "expr": "sum(container_memory_working_set_bytes{namespace=\"immich\",container!=\"\"})",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -520,8 +560,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -534,6 +579,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -556,8 +605,8 @@ data:
         {
          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"immich\",container!=\"\"}[5m]))",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -569,8 +618,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -583,6 +637,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -605,8 +663,8 @@ data:
         {
          "expr": "max(kubelet_volume_stats_used_bytes{namespace=\"immich\"}/kubelet_volume_stats_capacity_bytes{namespace=\"immich\"})*100 or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -618,8 +676,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -662,8 +725,8 @@ data:
         {
          "expr": "sum(increase(immich_api_request_duration_count{status=~\"5..\"}[1h])) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -675,8 +738,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -727,8 +795,8 @@ data:
         {
          "expr": "count(kube_pod_status_phase{namespace=\"monitoring\",phase!=\"Running\",phase!=\"Succeeded\"}==1) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -740,8 +808,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -780,8 +853,8 @@ data:
         {
          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"monitoring\"}[24h])) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -793,8 +866,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -837,8 +915,8 @@ data:
         {
          "expr": "sum(container_memory_working_set_bytes{namespace=\"monitoring\",container!=\"\"})",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -850,8 +928,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -864,6 +947,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -886,8 +973,8 @@ data:
         {
          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"monitoring\",container!=\"\"}[5m]))",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -899,8 +986,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -913,6 +1005,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -935,8 +1031,8 @@ data:
         {
          "expr": "max(kubelet_volume_stats_used_bytes{namespace=\"monitoring\"}/kubelet_volume_stats_capacity_bytes{namespace=\"monitoring\"})*100 or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -948,8 +1044,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -992,8 +1093,8 @@ data:
         {
          "expr": "sum(prometheus_tsdb_head_series)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1005,8 +1106,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1019,6 +1125,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1053,8 +1163,8 @@ data:
         {
          "expr": "count(kube_pod_status_phase{namespace=\"argocd\",phase!=\"Running\",phase!=\"Succeeded\"}==1) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1066,8 +1176,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1106,8 +1221,8 @@ data:
         {
          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"argocd\"}[24h])) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1119,8 +1234,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1163,8 +1283,8 @@ data:
         {
          "expr": "sum(container_memory_working_set_bytes{namespace=\"argocd\",container!=\"\"})",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1176,8 +1296,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1190,6 +1315,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1212,8 +1341,8 @@ data:
         {
          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"argocd\",container!=\"\"}[5m]))",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1225,8 +1354,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1239,6 +1373,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1261,8 +1399,8 @@ data:
         {
          "expr": "max(kubelet_volume_stats_used_bytes{namespace=\"argocd\"}/kubelet_volume_stats_capacity_bytes{namespace=\"argocd\"})*100 or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1274,8 +1412,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1318,8 +1461,8 @@ data:
         {
          "expr": "count(argocd_app_info)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1331,8 +1474,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1345,6 +1493,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1379,8 +1531,8 @@ data:
         {
          "expr": "count(kube_pod_status_phase{namespace=\"longhorn-system\",phase!=\"Running\",phase!=\"Succeeded\"}==1) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1392,8 +1544,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1432,8 +1589,8 @@ data:
         {
          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"longhorn-system\"}[24h])) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1445,8 +1602,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1489,8 +1651,8 @@ data:
         {
          "expr": "sum(container_memory_working_set_bytes{namespace=\"longhorn-system\",container!=\"\"})",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1502,8 +1664,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1516,6 +1683,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1538,8 +1709,8 @@ data:
         {
          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"longhorn-system\",container!=\"\"}[5m]))",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1551,8 +1722,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1565,6 +1741,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1587,8 +1767,8 @@ data:
         {
          "expr": "max(kubelet_volume_stats_used_bytes{namespace=\"longhorn-system\"}/kubelet_volume_stats_capacity_bytes{namespace=\"longhorn-system\"})*100 or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1600,8 +1780,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1644,8 +1829,8 @@ data:
         {
          "expr": "max(longhorn_backup_target_backup_volume_count)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1657,8 +1842,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1671,6 +1861,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1705,8 +1899,8 @@ data:
         {
          "expr": "count(kube_pod_status_phase{namespace=\"renovate\",phase!=\"Running\",phase!=\"Succeeded\"}==1) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1718,8 +1912,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1758,8 +1957,8 @@ data:
         {
          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"renovate\"}[24h])) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1771,8 +1970,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1815,8 +2019,8 @@ data:
         {
          "expr": "sum(container_memory_working_set_bytes{namespace=\"renovate\",container!=\"\"})",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1828,8 +2032,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1842,6 +2051,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1864,8 +2077,8 @@ data:
         {
          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"renovate\",container!=\"\"}[5m]))",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1877,8 +2090,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1891,6 +2109,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -1913,8 +2135,8 @@ data:
         {
          "expr": "max(kubelet_volume_stats_used_bytes{namespace=\"renovate\"}/kubelet_volume_stats_capacity_bytes{namespace=\"renovate\"})*100 or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1926,8 +2148,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -1970,8 +2197,8 @@ data:
         {
          "expr": "max(kube_job_status_succeeded{namespace=\"renovate\"}) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -1983,8 +2210,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -2035,8 +2267,8 @@ data:
         {
          "expr": "count(kube_pod_status_phase{namespace=\"cert-manager\",phase!=\"Running\",phase!=\"Succeeded\"}==1) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -2048,8 +2280,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -2088,8 +2325,8 @@ data:
         {
          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"cert-manager\"}[24h])) or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -2101,8 +2338,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -2145,8 +2387,8 @@ data:
         {
          "expr": "sum(container_memory_working_set_bytes{namespace=\"cert-manager\",container!=\"\"})",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -2158,8 +2400,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -2172,6 +2419,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -2194,8 +2445,8 @@ data:
         {
          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"cert-manager\",container!=\"\"}[5m]))",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -2207,8 +2458,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -2221,6 +2477,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
@@ -2243,8 +2503,8 @@ data:
         {
          "expr": "max(kubelet_volume_stats_used_bytes{namespace=\"cert-manager\"}/kubelet_volume_stats_capacity_bytes{namespace=\"cert-manager\"})*100 or vector(0)",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -2256,8 +2516,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -2300,8 +2565,8 @@ data:
         {
          "expr": "sum(rate(traefik_entrypoint_requests_total[5m]))",
          "legendFormat": "",
-         "instant": true,
-         "refId": "A"
+         "refId": "A",
+         "range": true
         }
        ],
        "options": {
@@ -2313,8 +2578,13 @@ data:
          "values": false
         },
         "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value"
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "wideLayout": false
        },
        "fieldConfig": {
         "defaults": {
@@ -2327,6 +2597,10 @@ data:
             "value": null
            }
           ]
+         },
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "green"
          }
         },
         "overrides": []
