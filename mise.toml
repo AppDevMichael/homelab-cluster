@@ -8,7 +8,7 @@ opentofu = "1.12.6"
 "pipx:ansible" = { version = "14.3.1", uvx_args = "--with-executables-from ansible-core" }
 "pipx:ansible-lint" = "latest"       # linter only, never touches the cluster
 kubectl = "1.36.4"                   # = the Kubernetes version inside k3s v1.36.4+k3s1
-helm = "4.2.4"
+helm = "4.3.0"
 kustomize = "5"                      # stable-only prefix match; used for `make lint` only
 restic = "0.19.1"
 jq = "1.8.2"                         # used by scripts/restore-longhorn-volumes.sh
