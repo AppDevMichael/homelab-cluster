@@ -104,7 +104,7 @@ alertmanager:
   # E-mail via the owner's Stalwart server. Password: Secret alertmanager-smtp (Tofu, smtp_password), mounted below.
   config:
     global:
-      smtp_smarthost: mail.mico.ie:587
+      smtp_smarthost: mail.mico.ie:465          # implicit TLS (Alertmanager switches to SMTPS on 465)
       smtp_from: alerts@mico.ie
       smtp_auth_username: alerts@mico.ie
       smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp/password
