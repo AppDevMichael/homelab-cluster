@@ -166,22 +166,13 @@ prometheusOperator:
   tolerations: *quorumTol
   affinity: *quorumAff   # see grafana
 
-# k3s control plane — all three nodes are servers. Ansible sets bind-address=0.0.0.0 for these.
-kubeControllerManager:
-  enabled: true
-  endpoints: &nodes [192.168.69.101, 192.168.69.102, 192.168.69.103]   # <- change
-  service: { port: 10257, targetPort: 10257 }
-  serviceMonitor: { https: true, insecureSkipVerify: true }
-kubeScheduler:
-  enabled: true
-  endpoints: *nodes
-  service: { port: 10259, targetPort: 10259 }
-  serviceMonitor: { https: true, insecureSkipVerify: true }
-kubeProxy:
-  enabled: true
-  endpoints: *nodes
+# k3s control plane. Only etcd is scraped: scheduler, controller-manager and kube-proxy live in the k3s process and
+# each metrics port serves the SAME ~190k-series registry (3x duplicate; they cannot be down without the apiserver).
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeProxy: { enabled: false }
 kubeEtcd:
   enabled: true
-  endpoints: *nodes
+  endpoints: [192.168.69.101, 192.168.69.102, 192.168.69.103]
   service: { port: 2381, targetPort: 2381 }
 
