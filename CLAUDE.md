@@ -203,8 +203,9 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 1. Alertmanager receiver (Discord/Telegram/email) via a Tofu-created Secret + kured `notifyUrl` — alerts currently go nowhere.
 2. Dead man's switch: Alertmanager `Watchdog` → healthchecks.io.
 3. ArgoCD metrics ServiceMonitor + alert on apps not Synced/Healthy.
-4. Tailscale operator on (`gitops/bootstrap/values.yaml` tailscale.enabled + OAuth client in tfvars), then turn off the
-   LAN (plain-HTTP) ingresses for ArgoCD/Grafana. Tailscale SSH already works; only the operator/ingresses are pending.
+4. (done 2026-09-16) Tailscale operator on: OAuth client in tfvars → `make argocd` → tailscale.enabled. Grafana/ArgoCD/Longhorn
+   answer at https://<name>.tail1b6ff6.ts.net. The LAN (plain-HTTP nip.io) ingresses for ArgoCD/Grafana are still on — turn off
+   when the owner no longer wants LAN access.
 5. (done 2026-09-04) `make check` — also clock offset per node.
 6. (done 2026-09-15) CI: lint.yml on every PR; Renovate runs as a CronJob on the cluster (gitops/renovate) — owner wants
    as few outside services as possible; only GitHub (the repo) remains. Needs renovate_github_token in tfvars + `make argocd`.

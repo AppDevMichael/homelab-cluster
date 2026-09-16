@@ -295,9 +295,9 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 
 | What | Where | Notes |
 |---|---|---|
-| Grafana | http://grafana.192.168.69.101.nip.io | `admin` / `make grafana-password`; LAN from an admin host only |
-| ArgoCD | http://argocd.192.168.69.101.nip.io | `admin` / `make argocd-password` |
-| Longhorn UI | tailnet Ingress only (no auth) — enable the Tailscale operator (`gitops/bootstrap/values.yaml`) | never on the LAN |
+| Grafana | https://grafana.tail1b6ff6.ts.net (tailnet, anywhere) or http://grafana.192.168.69.101.nip.io (LAN, admin hosts only) | `admin` / `make grafana-password` |
+| ArgoCD | https://argocd.tail1b6ff6.ts.net or http://argocd.192.168.69.101.nip.io | `admin` / `make argocd-password` |
+| Longhorn UI | https://longhorn.tail1b6ff6.ts.net (tailnet only, no auth) | never on the LAN |
 | Nodes (SSH) | `ssh ops@192.168.69.101` … `.103`, or `ssh ops@opi4p-1.tail1b6ff6.ts.net` (Tailscale SSH) | root SSH is off |
 | kubectl | `make nodes` / `make apps` (kubeconfig-tailscale by default) | `make check` = health summary |
 | Tailscale admin | https://login.tailscale.com/admin/machines | ACL `ssh` rule for `tag:k8s` |
