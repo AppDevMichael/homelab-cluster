@@ -49,11 +49,12 @@ scripts/
   backup-config.sh        restic (SFTP:23) of tfvars/lockfile/kubeconfigs/.env/storagebox key  ← laptop side
   restore-longhorn-volumes.sh   DR: recreate Volume + PV + PVC from latest Longhorn backups
 ansible/
-  site.yml                plays in order: firstboot(+nvme) → kernel,common,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
+  site.yml                plays in order: firstboot(+nvme) → kernel,common,smartctl,tailscale,hardening,updates → k3s init → k3s join → backup → kubeconfig
                           roles/hardening ends with set_fact ansible_user=hardening_admin_user (root SSH is off by then); firstboot uses root only when firstboot_ip is set
   upgrade-os.yml          `make os-upgrade [LIMIT=]`: rolling apt full-upgrade with drain/reboot/uncordon
   reboot.yml              `make reboot [LIMIT=]`: rolling drain → reboot → uncordon (roles/rolling/tasks/{drain,resume}.yml, shared with
                           upgrade-os and roles/kernel)
+  smartctl.yml            smartctl_exporter on every node (also in site.yml); runs from the laptop: `-i opi4p-1,opi4p-2,opi4p-3 -u ops`
   kernel.yml              rolling custom-kernel install (`make kernel-install [LIMIT=opi4p-2]`), drains only if k3s present
   spi-boot.yml            `make spi-boot [LIMIT=opi4p-2]`: apply roles/nvme/tasks/spi.yml one node at a time (then remove SD cards)
   inventory/hosts.yml     ansible_host = target static IP, firstboot_ip = first-boot DHCP IP (remove after)
@@ -65,6 +66,8 @@ ansible/
     kernel      stage kernel/debs/*.deb, apt install + hold; drain → reboot → uncordon ONLY when the running kernel lacks
                 dm-crypt (a no-op run touches nothing); verify dm_crypt/iscsi_tcp; lowpower.yml blacklists wifi/BT/video + masks services
     common      swap off (zram), cgroup boot args, sysctls, modules (dm_crypt, iscsi_tcp), packages
+    smartctl    smartmontools + smartctl_exporter release tarball (arm64) as a systemd unit on :9633 (no stable arm64 image exists);
+                Prometheus scrapes it via additionalScrapeConfigs; only the NVMe (Longhorn's iSCSI /dev/sdX are excluded)
     tailscale   apt repo, `tailscale up --ssh`, auto-update, records tailscale_ip/tailscale_dns facts
     hardening   ops user + keys, sshd drop-in, nftables (default-drop, k3s-aware), sysctls, fail2ban, journald
     updates     unattended-upgrades (security pockets), needrestart, reboot-required flag for kured
@@ -89,8 +92,9 @@ gitops/
   argocd/       values (insecure behind ingress, dex/notifications/appset off, small resources)
   longhorn/     values (defaultBackupStore s3://<bucket>@<region>/opi-k8s/longhorn/ — B2; nodeDownPodDeletionPolicy, preUpgradeChecker off) + manifests/
                 (StorageClass longhorn-encrypted=default with LUKS secret refs; Longhorn itself manages the plain `longhorn` class; RecurringJobs)
-  monitoring/   kube-prometheus-stack values (existingSecret grafana-admin, longhorn-encrypted PVCs,
-                k3s control-plane endpoints = node IPs) + manifests/sbc-alerts.yaml (temp/disk/mem/longhorn)
+  monitoring/   kube-prometheus-stack values (existingSecret grafana-admin, longhorn-encrypted PVCs, etcd endpoints = node IPs,
+                smartctl static scrape, Alertmanager e-mail + healthchecks) + manifests/ (sbc-alerts: temp/disk/mem/longhorn/argocd/smart;
+                home-dashboard + hardware-dashboard ConfigMaps)
   tailscale/    operator values (oauth from secret, apiServerProxy on, proxies tagged tag:k8s)
   cert-manager/ values + manifests/clusterissuer.yaml (Let's Encrypt prod, Cloudflare DNS-01, token Secret from Tofu)
   cloudnative-pg/ operator values (Postgres for Immich; CRDs from the chart)
@@ -109,7 +113,7 @@ gitops/
 ## Pinned versions (all GA, verified 2026-09-01)
 
 k3s v1.36.4+k3s1 · argo-cd chart 10.4.2 (pinned only in gitops/bootstrap/templates/argocd.yaml) · kube-prometheus-stack 88.3.0 · longhorn 1.12.0 ·
-tailscale-operator 1.102.3 · cert-manager v1.21.2 · cloudnative-pg chart 0.29.0 (operator 1.30.0) · immich chart 0.13.2 (Immich v3.2.2) · kured chart 6.0.0 · argocd-apps chart 2.0.5 · system-upgrade-controller v0.18.0 ·
+tailscale-operator 1.102.3 · cert-manager v1.21.2 · cloudnative-pg chart 0.29.0 (operator 1.30.0) · immich chart 0.13.2 (Immich v3.2.2) · kured chart 6.0.0 · smartctl_exporter 0.14.0 · argocd-apps chart 2.0.5 · system-upgrade-controller v0.18.0 ·
 OpenTofu 1.12.6 · Ansible 14.3.1 community package (= core 2.21.3 + collections) · kubectl 1.36.4 · Helm 4.2.4 · restic 0.19.1 · jq 1.8.2 ·
 hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · hashicorp/kubernetes ~>2.38
 

@@ -4,7 +4,8 @@ Description=Prometheus smartctl_exporter (NVMe SMART + temperature)
 After=network-online.target
 
 [Service]
-ExecStart=/opt/smartctl_exporter-{{ smartctl_exporter_version }}.linux-arm64/smartctl_exporter --smartctl.path=/usr/sbin/smartctl --smartctl.interval=120s --web.listen-address=0.0.0.0:9633
+ExecStart=/opt/smartctl_exporter-{{ smartctl_exporter_version }}.linux-arm64/smartctl_exporter --smartctl.path=/usr/sbin/smartctl --smartctl.interval=120s --smartctl.device-include=nvme --web.listen-address=0.0.0.0:9633
+# device-include: Longhorn attaches its volumes as iSCSI /dev/sdX (SMART-less VIRTUAL-DISKs) - only the NVMe is real
 Restart=on-failure
 ProtectSystem=strict
 ProtectHome=true

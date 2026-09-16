@@ -21,6 +21,7 @@
 | immich (chart) | `gitops/bootstrap/templates/immich.yaml` | https://github.com/immich-app/immich-charts/releases (OCI ghcr.io/immich-app/immich-charts) | Chart lags Immich; the Immich version is pinned separately. |
 | immich (app) | `gitops/immich/values.yaml` `tag:` | https://github.com/immich-app/immich/releases | Skip `-rc.N` tags; check breaking-change notes (DB extension changes). |
 | kured | `gitops/bootstrap/templates/kured.yaml` | https://github.com/kubereboot/charts/releases | Chart ≠ app version. |
+| smartctl_exporter | `ansible/group_vars/all.yml` (`smartctl_exporter_version`, no `v`) | https://github.com/prometheus-community/smartctl_exporter/releases | Host binary from the linux-arm64 tarball (checksum from sha256sums.txt); the container image has no stable arm64 build. |
 | system-upgrade-controller | `gitops/system-upgrade/kustomization.yaml` | https://github.com/rancher/system-upgrade-controller/releases | Two manifest URLs (crd.yaml + controller) — bump both. |
 | hashicorp/helm, kubernetes providers | `tofu/versions.tf`, `.terraform.lock.hcl` | https://registry.opentofu.org | helm provider v3 changed syntax (`kubernetes = {}`, `set = [{}]`). |
 

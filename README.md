@@ -49,6 +49,7 @@ CLI tools (`mise.toml`, exact pins, stable only): OpenTofu 1.12.6 · Ansible 14.
 | kernel (Orange Pi 4 Pro) | 6.6.98 vendor, custom build `26.08.0-k8s.1` | `kernel/userpatches/VERSION`, armbian/build commit in `scripts/build-kernel.sh` |
 | system-upgrade-controller | v0.18.0 | `gitops/system-upgrade/kustomization.yaml` |
 | kured chart | 6.0.0 | `gitops/bootstrap/templates/kured.yaml` |
+| smartctl_exporter | 0.14.0 | `ansible/group_vars/all.yml` (host service, roles/smartctl) |
 | hashicorp/helm provider | ~> 3.2 | `tofu/versions.tf` |
 
 Enable Renovate on the repo and it will open PRs for these automatically.
@@ -331,7 +332,7 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 
 | What | Where | Notes |
 |---|---|---|
-| Grafana | https://grafana.h.mico.ie (tailnet only) | `admin` / `make grafana-password` |
+| Grafana | https://grafana.h.mico.ie (tailnet only; Home + Hardware dashboards, SMART/temps on Hardware) | `admin` / `make grafana-password` |
 | Prometheus / Alertmanager | https://prometheus.h.mico.ie, https://alertmanager.h.mico.ie (tailnet only, no auth) | alert mails link here |
 | ArgoCD | https://argocd.h.mico.ie (tailnet only) | `admin` / `make argocd-password` |
 | Longhorn UI | https://longhorn.h.mico.ie (tailnet only, no auth of its own) | never on the LAN |
