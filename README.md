@@ -154,7 +154,7 @@ make apps                       # watch root → argocd, longhorn, monitoring, k
 First sync takes a few minutes on the Pis (kube-prometheus-stack CRDs are big). Then:
 
 - **Grafana** — `http://grafana.<node-ip>.nip.io`, `admin` / `make grafana-password`. Home dashboard is the cluster overview; *Node Exporter Full* has per-board temperature.
-- **Alerts** — `gitops/monitoring/manifests/sbc-alerts.yaml` adds SoC temperature, disk, memory alerts on top of the stack's defaults. Wire Alertmanager to Discord/Telegram/email by adding `alertmanager.config` to the values.
+- **Alerts** — `gitops/monitoring/manifests/sbc-alerts.yaml` adds SoC temperature, disk, memory alerts on top of the stack's defaults. Alertmanager e-mails them (`alertmanager.config` in the values: SMTP host/from/to in git, password from the Tofu Secret `alertmanager-smtp` via `smtp_password` in tfvars).
 
 ### Tailscale operator (optional)
 

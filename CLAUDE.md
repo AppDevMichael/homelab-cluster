@@ -76,7 +76,7 @@ tofu/
   backend.tf    kubernetes backend + OpenTofu state encryption (pbkdf2 from var.backup_key, enforced)
   argocd.tf     helm_release argo-cd (lifecycle ignore_changes: ArgoCD self-manages afterwards) + root app as a 2nd
                 helm_release of argo/argocd-apps 2.0.5 (CRDs must exist before the Application can be validated)
-  secrets.tf    ns monitoring (+grafana-admin), ns tailscale (+operator-oauth) — PSA privileged labels; ns cert-manager
+  secrets.tf    ns monitoring (+grafana-admin, +alertmanager-smtp), ns tailscale (+operator-oauth) — PSA privileged labels; ns cert-manager
                 (+cloudflare-api-token) when cloudflare_api_token is set
   longhorn.tf   ns longhorn-system (+longhorn-crypto LUKS key, +longhorn-backup-s3: endpoint + bucket-scoped key pair)
   variables.tf  git_repo_url(+_ssh_private_key_file), backup_key, longhorn_s3_*, tailscale_oauth_*, grafana_admin_password
@@ -217,7 +217,10 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
 
 ## Agreed next batch (not done yet — verified against the repo 2026-09-03)
 
-1. Alertmanager receiver (Discord/Telegram/email) via a Tofu-created Secret + kured `notifyUrl` — alerts currently go nowhere.
+1. (done 2026-09-16) Alertmanager e-mails alerts via the owner's Stalwart SMTP (mail.mico.ie:465, alerts@ → me@; password = Tofu Secret
+   alertmanager-smtp mounted as a file). kured notifyUrl skipped (a reboot shows up through Alertmanager anyway). Same day: ArgoCD 3
+   excludes Endpoints by default → kube-prometheus-stack's control-plane targets were never created (override in gitops/argocd);
+   k3s serves ONE metrics registry on every component port, so only etcd is scraped (scheduler/controller-manager/proxy off).
 2. Dead man's switch: Alertmanager `Watchdog` → healthchecks.io.
 3. ArgoCD metrics ServiceMonitor + alert on apps not Synced/Healthy.
 4. (done 2026-09-16) Tailscale operator on (OAuth client in tfvars → `make argocd` → tailscale.enabled). Same day: UIs moved to
