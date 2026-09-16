@@ -76,7 +76,7 @@ tofu/
   backend.tf    kubernetes backend + OpenTofu state encryption (pbkdf2 from var.backup_key, enforced)
   argocd.tf     helm_release argo-cd (lifecycle ignore_changes: ArgoCD self-manages afterwards) + root app as a 2nd
                 helm_release of argo/argocd-apps 2.0.5 (CRDs must exist before the Application can be validated)
-  secrets.tf    ns monitoring (+grafana-admin, +alertmanager-smtp), ns tailscale (+operator-oauth) — PSA privileged labels; ns cert-manager
+  secrets.tf    ns monitoring (+grafana-admin, +alertmanager-smtp, +alertmanager-healthchecks), ns tailscale (+operator-oauth) — PSA privileged labels; ns cert-manager
                 (+cloudflare-api-token) when cloudflare_api_token is set
   longhorn.tf   ns longhorn-system (+longhorn-crypto LUKS key, +longhorn-backup-s3: endpoint + bucket-scoped key pair)
   variables.tf  git_repo_url(+_ssh_private_key_file), backup_key, longhorn_s3_*, tailscale_oauth_*, grafana_admin_password
@@ -221,7 +221,8 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    alertmanager-smtp mounted as a file). kured notifyUrl skipped (a reboot shows up through Alertmanager anyway). Same day: ArgoCD 3
    excludes Endpoints by default → kube-prometheus-stack's control-plane targets were never created (override in gitops/argocd);
    k3s serves ONE metrics registry on every component port, so only etcd is scraped (scheduler/controller-manager/proxy off).
-2. Dead man's switch: Alertmanager `Watchdog` → healthchecks.io.
+2. (done 2026-09-16) Dead man's switch: Watchdog → webhook receiver (url_file from Tofu Secret alertmanager-healthchecks, repeat 4 min;
+   healthchecks.io check period 10 / grace 5). Prometheus + Alertmanager UIs at https://{prometheus,alertmanager}.h.mico.ie (tailnet-only).
 3. ArgoCD metrics ServiceMonitor + alert on apps not Synced/Healthy.
 4. (done 2026-09-16) Tailscale operator on (OAuth client in tfvars → `make argocd` → tailscale.enabled). Same day: UIs moved to
    https://{grafana,argocd,longhorn}.h.mico.ie — Traefik tailnet-only entrypoint + cert-manager (Cloudflare DNS-01). Tailscale

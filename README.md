@@ -333,6 +333,7 @@ Get notified on reboots: set `configuration.notifyUrl` in `gitops/kured/values.y
 | What | Where | Notes |
 |---|---|---|
 | Grafana | https://grafana.h.mico.ie (tailnet only) | `admin` / `make grafana-password` |
+| Prometheus / Alertmanager | https://prometheus.h.mico.ie, https://alertmanager.h.mico.ie (tailnet only, no auth) | alert mails link here |
 | ArgoCD | https://argocd.h.mico.ie (tailnet only) | `admin` / `make argocd-password` |
 | Longhorn UI | https://longhorn.h.mico.ie (tailnet only, no auth of its own) | never on the LAN |
 | Immich | https://immich.h.mico.ie (tailnet only; same URL in the mobile app) | first visit creates the admin account |
