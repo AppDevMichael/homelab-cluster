@@ -36,8 +36,8 @@ grafana:
   deploymentStrategy:
     type: Recreate         # RWO volume: don't try to run old+new pod at once during rollouts
   resources:
-    requests: { cpu: 50m, memory: 256Mi }
-    limits:   { memory: 768Mi }   # Grafana 13 + Longhorn/k8s dashboards sat at 239Mi and got OOM-killed at 256Mi
+    requests: { cpu: 50m, memory: 768Mi }
+    limits:   { memory: 1536Mi }   # Grafana 13 + Longhorn/k8s dashboards sat at 239Mi and got OOM-killed at 256Mi
   grafana.ini:
     analytics: { check_for_updates: false, reporting_enabled: false }
     users: { default_theme: dark }
