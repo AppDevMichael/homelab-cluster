@@ -14,6 +14,8 @@ grafana:
     userKey: admin-user
     passwordKey: admin-password
   defaultDashboardsTimezone: browser
+  env:
+    GOMEMLIMIT: 400MiB     # Go keeps ~5x heap as idle slack otherwise (heap in use ~100Mi, RSS was 400-850Mi)
   # Light monitoring parts live on the quorum-only node; Prometheus (1.7 GB) does not fit there next to etcd.
   tolerations:
     - { key: node-role.kubernetes.io/quorum-only, operator: Exists, effect: NoSchedule }
