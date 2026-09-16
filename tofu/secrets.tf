@@ -86,3 +86,15 @@ resource "kubernetes_secret_v1" "renovate_token" {
     RENOVATE_TOKEN = var.renovate_github_token
   }
 }
+
+# Alertmanager reads the SMTP password from this file mount (smtp_auth_password_file); the rest of the SMTP config is in git.
+resource "kubernetes_secret_v1" "alertmanager_smtp" {
+  count = var.smtp_password != "" ? 1 : 0
+  metadata {
+    name      = "alertmanager-smtp"
+    namespace = kubernetes_namespace_v1.monitoring.metadata[0].name
+  }
+  data = {
+    password = var.smtp_password
+  }
+}

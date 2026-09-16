@@ -82,3 +82,11 @@ variable "renovate_github_token" {
   default     = ""
   sensitive   = true
 }
+
+# ---- Alert e-mail (Alertmanager → the owner's Stalwart SMTP; host/from/to live in gitops/monitoring/values.yaml) ----
+variable "smtp_password" {
+  description = "Password of the SMTP account Alertmanager sends from. Empty = Secret not created (Alertmanager then fails to start: it mounts it)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

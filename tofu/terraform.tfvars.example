@@ -5,6 +5,7 @@ git_revision = "main"
 # git_ssh_private_key_file = "~/.ssh/opi-k8s-deploy-key"   # SSH URL above + this key (deploy key or account key); omit for anonymous HTTPS
 
 # grafana_admin_password = "something-strong"                 # empty = random, `make grafana-password`
+# smtp_password = "..."                                        # Alertmanager e-mail (account in gitops/monitoring/values.yaml)
 
 # Custom domain for the UIs (optional): Cloudflare API token with Zone.DNS Edit + Zone.Zone Read on the domain's zone
 # cloudflare_api_token = "..."
