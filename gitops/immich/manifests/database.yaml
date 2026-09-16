@@ -13,6 +13,8 @@ spec:
   storage:
     size: 10Gi
     storageClass: longhorn-encrypted
+  monitoring:
+    enablePodMonitor: true
   resources:
     requests: { cpu: 100m, memory: 256Mi }
     limits:   { memory: 1Gi }

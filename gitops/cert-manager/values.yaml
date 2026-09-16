@@ -2,6 +2,9 @@
 crds:
   enabled: true
   keep: true
+prometheus:
+  enabled: true
+  servicemonitor: { enabled: true }
 startupapicheck:
   enabled: false        # Helm-hook Job; pointless under ArgoCD's retry
 resources:

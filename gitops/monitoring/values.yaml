@@ -41,7 +41,7 @@ grafana:
   grafana.ini:
     analytics: { check_for_updates: false, reporting_enabled: false }
     users: { default_theme: dark }
-    dashboards: { default_home_dashboard_path: /var/lib/grafana/dashboards/community/k8s-views-global.json }
+    dashboards: { default_home_dashboard_path: /tmp/dashboards/home.json }   # manifests/home-dashboard.yaml (sidecar)
   sidecar:
     dashboards:
       enabled: true
@@ -62,6 +62,12 @@ grafana:
       k8s-views-global:   { gnetId: 15757, revision: 43, datasource: Prometheus }
       k8s-views-nodes:    { gnetId: 15759, revision: 37, datasource: Prometheus }
       node-exporter-full: { gnetId: 1860,  revision: 37, datasource: Prometheus }
+      # per-app dashboards (upstream-published); Immich has none upstream -> the Home dashboard carries its row
+      longhorn:           { gnetId: 13032, revision: 6,  datasource: Prometheus }
+      argocd:             { gnetId: 14584, revision: 1,  datasource: Prometheus }
+      traefik:            { gnetId: 17346, revision: 9,  datasource: Prometheus }
+      cert-manager:       { gnetId: 20842, revision: 3,  datasource: Prometheus }
+      cloudnativepg:      { gnetId: 20417, revision: 4,  datasource: Prometheus }
 
 prometheus:
   prometheusSpec:

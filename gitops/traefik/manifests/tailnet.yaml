@@ -17,6 +17,12 @@ spec:
           default: false
         tls:
           enabled: true
+    metrics:
+      prometheus:
+        service:
+          enabled: true
+        serviceMonitor:
+          enabled: true
 ---
 # https://<app>.h.mico.ie -> this tailnet IP (Cloudflare A record `*.h.mico.ie`, DNS-only, pointing at the 100.x address
 # `kubectl -n kube-system get svc traefik-tailnet` shows). MagicDNS name: h.<tailnet>.ts.net

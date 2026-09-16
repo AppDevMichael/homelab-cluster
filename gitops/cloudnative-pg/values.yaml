@@ -1,6 +1,8 @@
 # CloudNativePG operator (Postgres for Immich). Small footprint; CRDs ship with the chart.
 crds:
   create: true
+monitoring:
+  podMonitorEnabled: true      # operator metrics; each Cluster enables its own PodMonitor
 resources:
   requests: { cpu: 20m, memory: 64Mi }
   limits:   { memory: 256Mi }
