@@ -192,10 +192,10 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    namespace and the whole k3s process crash-loops (opi4p-3 was NotReady for 11 days after such a render, 2026-09-04→15; the
    etcd member flapped but quorum held). Taint/label with kubectl from the k3s role instead (already the case). After any
    template change, re-render on every node it applies to — a node left on the old render is a silent time bomb.
-9. Longhorn `taint-toleration` (quorum-only taint) shows `applied=false`: Longhorn applies it only when NO volume is attached.
-   Until then the system-managed DaemonSets (engine-image, csi-plugin) lack the toleration and won't reschedule on opi4p-3
-   after a reboot — harmless (no replicas there) but the Longhorn node will show as not ready. Apply in a maintenance
-   window: scale monitoring to 0 (volumes detach) → setting applies → scale back.
+9. (done 2026-09-16) Longhorn `taint-toleration` applied: needed every volume detached, done GitOps-style (commit replicas: 0 for
+   Grafana/Prometheus/Alertmanager/Immich + `cnpg.io/hibernation: "on"` on the CNPG Cluster, wait for `applied=true` (~5 min), revert).
+   Longhorn's engine-image + csi-plugin DaemonSets now tolerate the quorum-only taint (Grafana on opi4p-3 needs the csi-plugin
+   there). The k3s servicelb pod for Traefik was deleted from opi4p-3 (NoSchedule never evicts, so it sat there "misscheduled").
 10. (done 2026-09-16) Nodes renamed opi-N → opi4p-N with a one-shot play, deleted afterwards (git history: ansible/rename-node.yml; k3s node names are immutable: drain →
    k3s-uninstall → hostname/Tailscale → rejoin via a live server → restic timer). Re-runnable; when BACKUP_KEY is unset it reads
    the key from the node's /etc/restic/password. k3s-uninstall.sh bails out ("Additional k3s services") while
@@ -223,7 +223,7 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    k3s serves ONE metrics registry on every component port, so only etcd is scraped (scheduler/controller-manager/proxy off).
 2. (done 2026-09-16) Dead man's switch: Watchdog → webhook receiver (url_file from Tofu Secret alertmanager-healthchecks, repeat 4 min;
    healthchecks.io check period 10 / grace 5). Prometheus + Alertmanager UIs at https://{prometheus,alertmanager}.h.mico.ie (tailnet-only).
-3. ArgoCD metrics ServiceMonitor + alert on apps not Synced/Healthy.
+3. (done 2026-09-16) ArgoCD metrics scraped; ArgoCDAppNotSynced (30m) / ArgoCDAppUnhealthy (15m) in sbc-alerts.yaml.
 4. (done 2026-09-16) Tailscale operator on (OAuth client in tfvars → `make argocd` → tailscale.enabled). Same day: UIs moved to
    https://{grafana,argocd,longhorn}.h.mico.ie — Traefik tailnet-only entrypoint + cert-manager (Cloudflare DNS-01). Tailscale
    can't do custom domains itself (its certs/MagicDNS are ts.net only). The LAN nip.io ingresses are gone. DNS: one Cloudflare
