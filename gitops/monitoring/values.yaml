@@ -93,7 +93,6 @@ prometheus:
       - secretName: prometheus-tls
         hosts: [prometheus.h.mico.ie]
   prometheusSpec:
-    replicas: 0   # MAINTENANCE: revert (volume migration to longhorn-local)
     externalUrl: https://prometheus.h.mico.ie      # links in alert mails
     retention: 30d
     retentionSize: 15GB
