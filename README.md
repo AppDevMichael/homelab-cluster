@@ -200,7 +200,7 @@ URL https://immich.h.mico.ie (tailnet only, also for the mobile app). Turn off w
 
 ## Storage & failover
 
-Longhorn replicates every volume to **2 of the 3 nodes** (different nodes, enforced). Prometheus, Grafana and Alertmanager all use the default `longhorn-encrypted` class. If a node dies:
+Longhorn replicates every volume to **2 of the 3 nodes** (different nodes, enforced). Grafana, Alertmanager and Immich use the default `longhorn-encrypted` class; Prometheus uses `longhorn-local` (1 replica, strict-local, still encrypted) because its data is rebuildable and it was the biggest writer — if opi4p-1 dies, metrics history is gone, nothing else. If a node dies:
 
 1. Kubernetes marks it NotReady (~40 s).
 2. Longhorn's `nodeDownPodDeletionPolicy` force-deletes the stuck pods (StatefulSets don't do this on their own — they'd wait forever).

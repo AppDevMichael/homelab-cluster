@@ -218,6 +218,13 @@ hashicorp/helm provider ~>3.2 (v3 syntax: `kubernetes = {}`, `set = [{}]`) · ha
    deadlocks on the volume). ArgoCD + ServerSideApply did not apply a RollingUpdate→Recreate change (diff showed clean,
    live stayed RollingUpdate) — patched live once with `rollingUpdate: null`; watch for it if a chart flips strategy.
 
+14. (done 2026-09-17) Prometheus on `longhorn-local` (1 replica, strict-local, encrypted) pinned to opi4p-1: it was the biggest constant
+   writer through replication. Migration recipe (PVC name is fixed by the StatefulSet): scale to 0 via a git commit → delete the PVC
+   (PV is Retain) → remove the PV's claimRef → new PVC same name on the new class + a `prom-old` PVC bound to the old PV → busybox
+   copy pod pinned to the node (`cp -a`) → revert the commit → delete old PVC/PV/Longhorn volume. strict-local replicas land on the
+   node that first attaches, so the copy pod must run where the workload is pinned. Snapshots are daily (were 6-hourly); rsyslog is
+   masked (journald only; it wrote 3 GB of syslog on opi4p-3 during the crash loop, which is why that NVMe shows 2x lifetime writes).
+
 ## Agreed next batch (not done yet — verified against the repo 2026-09-03)
 
 1. (done 2026-09-16) Alertmanager e-mails alerts via the owner's Stalwart SMTP (mail.mico.ie:465, alerts@ → me@; password = Tofu Secret
