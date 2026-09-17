@@ -78,7 +78,7 @@ hardening_admin_hosts:
 # Extra nftables input rules, e.g. "tcp dport 30080 accept"
 hardening_extra_nft_input_rules: []
 hardening_blacklist_modules: [dccp, sctp, rds, tipc, cramfs, freevxfs, jffs2, hfs, hfsplus, udf]   # add usb-storage if you never use USB disks
-hardening_disable_services: [avahi-daemon, bluetooth, cups, rpcbind]
+hardening_disable_services: [avahi-daemon, bluetooth, cups, rpcbind, rsyslog]   # rsyslog duplicated journald into /var/log/syslog (3 GB during the 2026-09 crash loop)
 
 # ---- Updates -----------------------------------------------------------
 # OS: unattended-upgrades pulls Debian/Ubuntu *security* pockets daily. Reboots are NOT done by

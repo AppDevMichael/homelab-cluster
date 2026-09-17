@@ -2,11 +2,11 @@
 apiVersion: longhorn.io/v1beta2
 kind: RecurringJob
 metadata:
-  name: snapshot-6h
+  name: snapshot-daily
   namespace: longhorn-system
 spec:
-  task: snapshot
-  cron: "0 */6 * * *"
+  task: snapshot          # every 6h was needless chain growth (reads walk the snapshot chain); the 01:30 backup snapshots too
+  cron: "0 13 * * *"
   retain: 4
   concurrency: 2
   groups: [default]

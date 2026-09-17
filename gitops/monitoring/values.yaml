@@ -110,10 +110,18 @@ prometheus:
     resources:
       requests: { cpu: 400m, memory: 2Gi }
       limits:   { memory: 4Gi }   # was at 863Mi of 1Gi after 4h; nodes have 12 GB
+    # 1 replica, strict-local (gitops/longhorn/manifests/storageclasses.yaml): metrics are rebuildable, and Prometheus was
+    # the biggest constant writer through Longhorn's replication. strict-local => the pod must stay on the replica's node.
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - { key: kubernetes.io/hostname, operator: In, values: [opi4p-1] }
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: longhorn-encrypted
+          storageClassName: longhorn-local
           accessModes: [ReadWriteOnce]
           resources: { requests: { storage: 20Gi } }
 
